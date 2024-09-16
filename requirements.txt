@@ -1,0 +1,12 @@
+ftfy
+packaging
+regex
+tqdm
+numpy
+torch
+torchvision
+Pillow
+scikit-learn
+hnswlib
+keyboard
+deep-translator

@@ -1,3 +1,7 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 from pathlib import Path
 
 from core.tools.folder_tools import isdir_makefolder
@@ -14,4 +18,5 @@ JSON_FILE_PATH = PATH_DATA+"sample.json"
 TEMP_VAL = []
 EMPTY_LIST = []
 CLIP_LOAD = "ViT-B/32"
+# ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64', 'ViT-B/32', 'ViT-B/16', 'ViT-L/14', 'ViT-L/14@336px']
 

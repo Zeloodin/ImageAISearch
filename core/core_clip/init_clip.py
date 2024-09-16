@@ -1,3 +1,7 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 import os
 import pathlib
 from types import NoneType
@@ -13,7 +17,8 @@ from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
 import hnswlib
 
-from core.tools import load_json_file
+from core.tools.list_tools import mini_translator
+from core.tools.json_tools import load_json_file, save_json_file
 from core.tools.bool_tools import filter_bool
 from core.tools.folder_tools import Folder_make_list, isdir_makefolder, filter_str_list
 from core.core_clip.load_clip import load_pkl
@@ -327,41 +332,20 @@ class Generate_clip_features:
             # Сохранять через каждые N шагов
             # save_every_n
             if i % self.__save_every_n == 0:
+                # Сохраняем векторные представления изображений в файл pkl
                 save_pkl(all_image_features, PKL_FILE_PATH)
+                # Сохраняем список изображений в self.__all_image_features через каждые N шагов
                 self.__all_image_features = all_image_features
                 print(len(self.__all_image_features))
         # Сохраняем окончательные результаты
         save_pkl(all_image_features, PKL_FILE_PATH)
+        # Сохраняем список изображений в self.__all_image_features
         self.__all_image_features = all_image_features
 
-    # Простая функция, создания и сбора изображений в pkl файл.
-    #
-    def run(self, save_every_n=100, clip_load=CLIP_LOAD, replace_clip_model=False):
-        # Определяем устройство для выполнения операций
-        self.__device = "cuda" if torch.cuda.is_available() else "cpu"
-        # Выводим информацию о выбранном устройстве
-        print(self.__device)
-        # Проверяем, нужно ли заменить модель и предобработку
-        if replace_clip_model or (self.__model == None and self.__preprocess == None):
-            # Выводим сообщение о создании модели и предобработке
-            print(f"create model and preprocess, load clip: {clip_load}")
-            # Загружаем модель и предобработку
-            self.__model, self.__preprocess = clip.load(clip_load)
 
-        # Устанавливаем частоту сохранения результатов
-        self.__save_every_n = save_every_n
-
-        # Находим список изображений
-        self.find_image_list()
-
-        print(f"Обработанно изображений: {len(self.__all_image_features)}")
-        print(f"Найдено изображений: {len(self.__image_filenames)}")
-
-        # Создаем векторные представления изображений
-        self.create_clip_image_features(self.__all_image_features, self.__image_filenames)
 
     @staticmethod
-    def convert_image(input_data, is_str=False):
+    def convert_image(input_data: Union[str, Image.Image], is_str: bool = False) -> Optional[Image.Image]:
         """
         Конвертирует данные в изображение.
 
@@ -372,19 +356,29 @@ class Generate_clip_features:
         Возвращаемый тип данных:
             - Объект PIL.Image
         """
+        # Если input_data - строка, значит это путь к файлу
         if isinstance(input_data, str):
             # Если input_data - строка, значит это путь к файлу
             try:
+                # Попытка открыть изображение
                 image = Image.open(input_data)
             except FileNotFoundError as e:
+                # Если файл не найден, выводим сообщение и возвращаем None 
+                # (если is_str = True, то вернуть True)
                 print("Файл не найден:", e)
                 return None if not is_str else True
             else:
+                # Если input_data - строка, значит это путь к файлу
+                # и открытие прошло успешно, возвращаем объект PIL.Image
+                # (если is_str = True, то вернуть False)
                 return image if not is_str else False
+            
         elif isinstance(input_data, Image.Image):
             # Если input_data - уже объект PIL.Image, просто вернуть его
+            # (если is_str = True, то вернуть False)
             return input_data if not is_str else False
         else:
+            # Если input_data - неверный тип данных, выбрасываем исключение
             raise ValueError("Неизвестный тип данных")
 
     def searcher_clip(self,
@@ -395,7 +389,55 @@ class Generate_clip_features:
                       path_clip_image: str = None,
                       file_names=None,
                       file_names_path=None,
-                      is_str: bool = False):
+                      is_str: bool = False,
+                      len_count: int = 10):
+        """
+        Метод для поиска ближайших соседей по изображению или тексту.
+
+        Он принимает несколько параметров:
+            - `query_image_pillow`: изображение, по которому будет выполняться поиск.
+            - `query_str_pillow`: текст, по которому будет выполняться поиск.
+            - `image_filenames`: список имeн файлов, которые будут использоваться для поиска.
+            - `image_features`: список признаков изображений, которые будут использоваться для поиска.
+            - `path_clip_image`: путь к файлу, в котором хранятся признаки изображений.
+            - `file_names`: список имeн файлов, которые будут использоваться для поиска.
+            - `file_names_path`: путь к папке, в которой хранятся файлы, которые будут использоваться для поиска.
+            - `is_str`: флаг, указывающий, является ли `query_str_pillow` строкой или нет.
+
+        Метод возвращает список найденных изображений.
+
+        :param query_image_pillow: Query image, optional
+        :type query_image_pillow: str or PIL.Image.Image
+        :param query_str_pillow: Query string, optional
+        :type query_str_pillow: str or List[str]
+        :param image_filenames: List of image filenames, optional
+        :type image_filenames: List[str]
+        :param image_features: List of image features, optional
+        :type image_features: List[np.ndarray]
+        :param path_clip_image: Path to the file containing the image features, optional
+        :type path_clip_image: str
+        :param file_names: List of filenames, optional
+        :type file_names: List[str]
+        :param file_names_path: Path to the folder containing the files, optional
+        :type file_names_path: str
+        :param is_str: Flag indicating whether `query_str_pillow` is a string or not, optional
+        :type is_str: bool
+        :return: List of found images
+        :rtype: List[PIL.Image.Image]
+
+        query_image_pillow – это путь к изображению или само изображение Pillow для поиска.
+        query_str_pillow – список строк или строка для поиска.
+        image_filenames – словарь имён файлов изображений.
+        image_features – массив характеристик изображений.
+        path_clip_image – путь к файлу сохраненных характеристик.
+        file_names – имена файлов для найденных результатов.
+        file_names_path – пути к файлам для найденных результатов.
+        is_str – флаг, определяющий, является ли поиск текстовым.
+        len_count – количество результатов, которое нужно вернуть. По умолчанию 10.
+        """
+
+        # Вложенные определения переменных
+        # Эти переменные привязываются к экземпляру класса через __
         self.__query_image_pillow = query_image_pillow
         self.__query_str_pillow = query_str_pillow
         self.__image_filenames = image_filenames
@@ -404,15 +446,22 @@ class Generate_clip_features:
         self.__file_names = file_names
         self.__file_names_path = file_names_path
         self.__is_str = is_str
-
+        self.__len_count = len_count if len_count > 0 else 1
+        
         ##########################
         # Настройка параметров   #
         ##########################
 
+        # Обработка пустых значений
+        # Если путь к клипу (path_clip_image) отсутствует,
+        # используется предопределённый путь (PKL_FILE_PATH).
         # Если путь к клипу не определен, используется значение по умолчанию
         if isinstance(path_clip_image, NoneType):
             self.__path_clip_image = PKL_FILE_PATH
 
+        # Загрузка данных из файла
+        # Если характеристики изображений (image_features) отсутствуют,
+        # они загружаются из файла (self.__path_clip_image).
         # Загрузка признаков изображений, если они еще не загружены
         if isinstance(image_features, NoneType):
             self.__image_features = pk.load(open(self.__path_clip_image, "rb"))
@@ -421,139 +470,303 @@ class Generate_clip_features:
         # Преобразование признаков #
         ##########################
 
+        # Подготовка характеристик для поиска
+        # Характеристики изображений преобразуются в
+        # NumPy массив и вычисляется их длина.
         self.__features = []
+        # Преобразование характеристик изображений в NumPy массив
         for image in self.__image_features:
+            # Векторная нормализация
+            # Нормализация дает нам более точные результаты поиска
             self.__features.append(np.array(image['features']))
+        # Сохранение в NumPy массив
+        # array - создает NumPy массив
         self.__features = np.array(self.__features)
+        # squeeze - удаляет измерение из массива
         self.__features = np.squeeze(self.__features)
-
-        print(isinstance(image_features, NoneType),
-              isinstance(path_clip_image, NoneType),
-              self.__path_clip_image,
-              self.__image_features,
-              len(self.__features),
-              self.__features)
+        #  выводит в консоль информацию о длине массива
+        print(f"len features = {len(self.__features)}")
 
         ##########################
         # Подготовка поискового изображения #
         ##########################
 
 
-
-        if self.__is_str and not self.__query_str_pillow is None:
+        # Установка параметров поиска
+        # Устанавливаются параметры индекса HNSW и
+        # производится добавление элементов.
+        if self.__is_str:
+            # Создание папки для сохранения результатов
             isdir_makefolder(PATH_SEARCH_RES)
+            # Колличество ближайших соседей
+            self.__k = self.__len_count
+            # Если колличество ближайших соседей больше количества признаков, то берём колличество признаков
+            self.__k = self.__k if len(self.__features) >= self.__k else len(self.__features)
+            print(f"k = {self.__k}")
 
-            self.__dim = 512
+
+            # Поиск ближайших соседей с помощью иерархического маленького мира
+            # Определение размера вектора
+            # Здесь определяется размер вектора (в данном случае 512).
+            self.__dim = 512 # Размер вектора
+                       # 512
+
+            # Создание индекса HNSW с пространством L2 и заданной размерностью.
+            # Также задаются параметры индексации,
+            # включая максимальное количество элементов (max_elements),
+            # значение параметра ef_construction и значение параметра M.
             self.__index = hnswlib.Index(space='l2', dim=self.__dim)
             self.__index.init_index(max_elements=len(self.__features), ef_construction=100, M=16)
+                                                #len(self.__features)# ef_construction=100, M=16
+            # Добавление элементов в индекс
             self.__index.add_items(self.__features)
 
+            # Печать максимального количества элементов:
+            # Печатается текущее значение максимального количества элементов в индексе.
+            print(f"{self.__index.max_elements = }")
+
+            # Фиттинг модели ближайших соседей
+            # Вызывается метод fit_NearestNeighbors,
+            # который, вероятно, выполняет фиттинг модели ближайших соседей.
+            # Параметры включают список имён файлов и пути к ним.
             self.fit_NearestNeighbors(self.__file_names, self.__file_names_path)
 
-            for in_text in filter_str_list(self.__query_str_pillow):
+            # Показать длины списка файлов и пути к файлам.
+            print(f"{len(self.__file_names) = }")
+            print(f"{self.__file_names_path = }")
+
+            # Преобразование текста
+            # Текстовые запросы фильтруются и переводятся.
+            # Фильтрация списка строк
+            # Вызывается функция filter_str_list,
+            # которая, вероятно, фильтрует список строк.
+            self.__query_str_pillow = filter_str_list(self.__query_str_pillow)
+            for i, text in enumerate(self.__query_str_pillow):
+                # Каждый текст, переводит на английский язык.
+                to_lang = "auto" # входящий язык, с которого переводим
+                from_lang = "en" # выходящий язык, на который переводим
+                # перевод текста в английский язык и сохранение в переменную temp_translation
+                temp_translation = mini_translator(text, to_lang, from_lang)
+                # перезапись в self.__query_str_pillow[i] переведенного текста
+                self.__query_str_pillow[i] = temp_translation
+
+            # Вычисление векторов текста
+            # Выполняется поиск ближайших точек для каждого текстового запроса.
+            for in_text in self.__query_str_pillow:
+                # Токенизирует текст
                 self.__text_tokenized = clip.tokenize(in_text).to(self.__device)
                 with torch.no_grad():
+                    # Кодирует текст
                     self.__text_features = self.__model.encode_text(self.__text_tokenized)
+                    # Нормализует вектор
                     self.__text_features /= self.__text_features.norm(dim=-1, keepdim=True)
+                
+                # Устанавливает значение k
+                self.__k = self.__len_count
+                # Если k меньше или равно количеству изображений, то k = количество изображений, иначе k = k
+                self.__k = self.__k if len(self.__file_names) >= self.__k else len(self.__file_names)
+                print(f"{self.__k = }")
+                # Печатает длину списка текстовых векторов
+                print(f"{len(self.__text_features) = }")
 
-                self.__labels, self.__distances = self.__index.knn_query(self.__text_features.cpu().numpy(), k=1)
+                # Запрашиваем KNN для заданного текста и возвращаем его результаты.
+                # self.__text_features.cpu().numpy() это текстовые векторы в виде numpy-массива.
+                # self.__k это количество ближайших соседей, которое мы хотим получить.
+                # self.__distances это список расстояний до ближайших соседей.
+                self.__labels, self.__distances = self.__index.knn_query(self.__text_features.cpu().numpy(), k=self.__k)
 
+                # Формирование результата
+                # Сформированный результат отображает для найденных изображений.
                 self.__images_np_hnsw_clip_text = []
+                # Печатает длину списка self.__labels
+                print(f"{self.__labels = }")
+                # убираем список self.__labels[0]
                 self.__labels = self.__labels[0]
 
-                print(f"{self.__labels = }")
+                # Проходимся по списку изображений
                 for i, idx in enumerate(self.__labels):
+                    # Печатает номер и имя изображения
+                    # Если в self.__file_names[idx] нет значений None, то печатает имя файла
                     if self.__file_names is not None:
+                        # Печатает имя файла
                         print(f'{self.__file_names[idx]}')
 
                     try:
+                        # Печатает имя файла
                         print(f'{self.__file_names[idx]}')
+                        # Открывает изображение
                         self.__img2 = Image.open(f'{self.__file_names[idx]}')
 
+                        # Разделяет имя файла
                         self.__filename = ".".join(self.__file_names[idx].split("\\")[-1].split(".")[:-1])
+                        # Разделяет расширение
                         self.__file_extension = "." + self.__file_names[idx].split("\\")[-1].split(".")[-1]
+                        # Печатает имя и расширение
                         print(self.__filename, self.__file_extension)
-
-                        isdir_makefolder(PATH_SEARCH_RES)
-                        self.__img2.save(f"{PATH_SEARCH_RES}{in_text}\\{self.__filename}_img_{i}{self.__file_extension}")
-
+                        # Создаёт директорию
+                        isdir_makefolder(PATH_SEARCH_RES + in_text)
+                        # Сохраняет изображение
+                        self.__img2.save(
+                            f"{PATH_SEARCH_RES}{in_text}\\{i}_img_{self.__filename}{self.__file_extension}")
+                        # Присоединяет изображение к списку
                         self.__images_np_hnsw_clip_text.append(np.array(self.__img2))
                     except Exception as e:
+                        # Печатает ошибку
                         print(e)
+                        # Печатает значения для отладки
                         print(f'{in_text = }\n{idx = }\n{i = }')
+                        # Продолжает цикл, игнорируя ошибку
                         continue
 
         else:
+            # Если входящие изображения не переданы, используем те, что уже есть
             self.__query_image_pillow = self.convert_image(self.__query_image_pillow)
+            # Сохраняет векторное представление изображения
             self.__query_image_features = self.get_features(self.__query_image_pillow)
 
             ##########################
             # Поиск ближайших соседей #
             ##########################
 
-            self.__knn = NearestNeighbors(n_neighbors=len(self.__image_features), algorithm='brute', metric='euclidean')
+            # Устанавливает значение k
+            self.__k = self.__len_count
+            # Если k меньше или равно количеству изображений, то k = количество изображений, иначе k = k            
+            self.__k = self.__k if len(self.__image_features) >= self.__k else len(self.__image_features)
+            # Печатает значение k
+            print(f"k = {self.__k}")
+            print(f"len image features = {len(self.__image_features)}")
+
+            # Инициализирует объект NearestNeighbors с алгоритмом поиска ближайших соседей и метрикой "по Евклиду".
+            # self.__features это векторные представления изображений.
+            self.__knn = NearestNeighbors(n_neighbors=self.__k, algorithm='brute', metric='euclidean')
+            # Обучает объект NearestNeighbors на векторных представлениях изображений.
             self.__knn.fit(self.__features)
+            # Ищет ближайшие соседей по векторным представлениям изображений.
+            # self.__indices это список индексов ближайших соседей.
+            # Возвращает список индексов ближайших соседей для каждого изображения.
             self.__indices = self.__knn.kneighbors(self.__query_image_features, return_distance=False)
+            # Создает пустой список для хранения найденных изображений.
             self.__found_images = []
 
             ##########################
             # Печать результатов     #
             ##########################
 
+            # Печатает результаты поиска ближайших соседей
             print(self.__indices)
 
             ##########################
             # Добавление найденных изображений #
             ##########################
 
+            # Если путь к файлам не передан, используем те, что уже есть
             self.fit_NearestNeighbors(self.__file_names, self.__file_names_path)
 
+            # Проходимся по списку индексов ближайших соседей
             for i, x in enumerate(self.__indices[0]):
+                # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
                 try:
+                    # Переменная, которая хранит путь к изображению
                     self.__in_path = self.__file_names[x]
                     print(self.__in_path)
+                    # Открываеи изображение с указанным путём и сохраняеи его в self.__img1
                     self.__img1 = Image.open(self.__in_path)
 
+                    # Переменные, которые хранят название и расширение файла
+                    # self.__filename - имя файла без расширения
                     self.__filename = ".".join(self.__in_path.split("\\")[-1].split(".")[:-1])
+                    # self.__file_extension - расширение файла
                     self.__file_extension = "." + self.__in_path.split("\\")[-1].split(".")[-1]
+                    # Выводим имя и расширение
                     print(self.__filename, self.__file_extension)
 
+                    # Сохраняет изображение в папку images_find (переменная PATH_SEARCH_RES) (Если нет папки, то создает её)
+                    # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
                     isdir_makefolder(PATH_SEARCH_RES)
-                    self.__img1.save(f"{PATH_SEARCH_RES}{self.__filename}_img_{i}{self.__file_extension}")
-
+                    # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
+                    self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
+                    # Добавляет изображение в список self.__found_images
                     self.__found_images.append(np.array(self.__img1))
                 except Exception as e:
                     print(e)
                     continue
 
-    def fit_NearestNeighbors(self, file_names=None, file_names_path=None):
-        if isinstance(self.__file_names_path, NoneType) and isinstance(file_names_path, NoneType):
-            self.__file_names_path = JSON_FILE_PATH
-        elif isinstance(self.__file_names_path, NoneType) and not isinstance(file_names_path, NoneType):
-            self.__file_names_path = file_names_path
-        elif not isinstance(self.__file_names_path, NoneType) and not isinstance(file_names_path, NoneType):
-            self.__file_names_path = file_names_path
-        else:
-            self.__file_names_path = JSON_FILE_PATH
+    def fit_NearestNeighbors(self, file_names: Optional[List[str]] = None, file_names_path: Optional[str] = None) -> None:
+        """
+        Метод для настройки параметров поиска ближайших соседей.
 
-        if isinstance(self.__file_names, NoneType) and isinstance(file_names, NoneType):
-            self.__file_names = load_json_file(self.__file_names_path)
-        elif isinstance(self.__file_names, NoneType) and not isinstance(file_names, NoneType):
-            self.__file_names = file_names
-        elif not isinstance(self.__file_names, NoneType) and not isinstance(file_names, NoneType):
-            self.__file_names = file_names
-        else:
-            self.__file_names = load_json_file(self.__file_names_path)
+        file_names - список путей к файлам, которые нужно добавить в image_list.
+        file_names_path - путь к файлу, который будет использоваться для записи image_list.
+
+        :param file_names: list of str, optional
+        :param file_names_path: str, optional
+        :return: None
+        """
+
+        self.__file_names_path = file_names_path or self.__file_names_path or JSON_FILE_PATH
+        self.__file_names = file_names or load_json_file(self.__file_names_path)
+    
+    
+    def run(self, save_every_n=100, clip_load=CLIP_LOAD, replace_clip_model=False):
+        print("run started")
+        # Определяем устройство для выполнения операций
+        self.__device = "cuda" if torch.cuda.is_available() else "cpu"
+        # Выводим информацию о выбранном устройстве
+        print("device:", self.__device)
+        # Проверяем, нужно ли заменить модель и предобработку
+        if replace_clip_model or (self.__model == None and self.__preprocess == None):
+            print("create model and preprocess")
+            # Выводим сообщение о создании модели и предобработке
+            print(f"create model and preprocess, load clip: {clip_load}")
+            # Загружаем модель и предобработку
+            self.__model, self.__preprocess = clip.load(clip_load)
+
+        # Устанавливаем частоту сохранения результатов
+        self.__save_every_n = save_every_n
+
+        # Находим список изображений
+        self.find_image_list()
+        print(fr"Колличество изображений {len(self.get_image_list())}")
+        print("find_image_list finished")
+        save_json_file(self.get_image_list())
+
+        print(f"Обработанно изображений: {len(self.__all_image_features)}")
+        print(f"Найдено изображений: {len(self.__image_filenames)}")
+
+        # Создаем векторные представления изображений
+        self.create_clip_image_features(self.__all_image_features, self.__image_filenames)
+        print("create_clip_image_features finished")
 
 if __name__ == "__main__":
+    # gen_clip = Generate_clip_features()
+    #
+    # gen_clip.find_image_list(new_folder_list=["Здесь пути к изображениям"])
+    # gen_clip.run()
+    #
+    # print(gen_clip.image_list)
+    #
+    # gen_clip.searcher_clip(query_image_pillow="Здесь поиск по изображению")
+    #
+    # list_text = ["minecraft", "Цветок", "Mario", "pixel", "voxel", "пейзаж", "горы", "background sky white"]
+    # gen_clip.searcher_clip(query_str_pillow=list_text, is_str=True)
+
     gen_clip = Generate_clip_features()
+    gen_clip.find_image_list(new_folder_list=[r"ImageAISearch\folder_path"])
 
-    gen_clip.find_image_list(new_folder_list=["Здесь пути к изображениям"])
+
     gen_clip.run()
+    gen_clip.searcher_clip(len_count=5, query_image_pillow=r"images\i_mario.jpg")
 
-    print(gen_clip.image_list)
+    list_text = ["minecraft",
+                 "Цветок",
+                 "Mario",
+                 "pixel",
+                 "voxel",
+                 "пейзаж",
+                 "горы",
+                 "красивый закат солнца",
+                 "красный город в закате"]
 
-    gen_clip.searcher_clip(query_image_pillow="Здесь поиск по изображению")
+    gen_clip.searcher_clip(len_count=5, query_str_pillow=list_text, is_str=True)
 
-    list_text = ["minecraft", "Цветок", "Mario", "pixel", "voxel", "пейзаж", "горы", "background sky white"]
-    gen_clip.searcher_clip(query_str_pillow=list_text, is_str=True)
+

@@ -1,4 +1,8 @@
 #!/usr/bin/env python
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 from core.tools.folder_tools import \
     (filter_str_list,
      search_in_list,
@@ -7,7 +11,7 @@ from core.tools.folder_tools import \
 
 from core.tools.specific import retrieve_name
 from core.tools.bool_tools import filter_bool, isfloat
-from core.tools.list_tools import remove_duplicates, reverse_item
+from core.tools.list_tools import remove_duplicates, reverse_item, mini_translator
 from core.tools.json_tools import save_json_file, load_json_file
 
 from core.tools.variables import (

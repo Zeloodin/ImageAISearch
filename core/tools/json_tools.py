@@ -1,3 +1,7 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 from json import dumps, load
 
 from core.tools.variables import JSON_FILE_PATH

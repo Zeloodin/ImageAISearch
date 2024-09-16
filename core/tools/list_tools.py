@@ -1,4 +1,21 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+from deep_translator import GoogleTranslator
+# GoogleTranslator не требует ключа
+
 from core.tools import bool_tools
+
+def mini_translator(text, to_lang='auto', from_lang="en"):
+    try:
+        if to_lang == from_lang:
+            return text
+        translator = GoogleTranslator(to_lang, from_lang)
+        translation = translator.translate(text)
+        return translation
+    except Exception as e:
+        print(e)
+        return text
 
 def reverse_item(item):
     return item[::-1]

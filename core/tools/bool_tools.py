@@ -1,3 +1,7 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 from typing import List, Optional, Union
 # Импортируем необходимые типы данных для работы функции
 
@@ -11,7 +15,7 @@ def filter_bool(value: Union[bool, str, int, float] = False) -> bool:
     """
     Функция для проверки на буленновское значение.
 
-    value: булеан или строка или целое число или вещественное число для фильтрации.
+    Value: булеан или строка или целое число, или вещественное число для фильтрации.
     """
 
     def _in_int(value: int):

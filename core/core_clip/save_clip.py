@@ -1,3 +1,7 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 import pickle as pk
 
 from core.tools.variables import PKL_FILE_PATH

@@ -1,3 +1,7 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 # Импортируем модули, необходимые для работы с файлами и для работы с библиотекой Pickle
 from os.path import isfile
 import pickle as pk

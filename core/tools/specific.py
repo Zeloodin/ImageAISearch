@@ -1,3 +1,7 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 from inspect import currentframe
 def retrieve_name(var):
     callers_local_vars = currentframe().f_back.f_locals.items()

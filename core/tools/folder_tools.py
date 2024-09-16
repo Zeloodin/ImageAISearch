@@ -1,10 +1,14 @@
+""" -*- coding: UTF-8 -*-
+handle msg between js and python side
+"""
+
 import os
 from pathlib import Path
 from types import NoneType
 from typing import List, Optional, Union
 
-from keyboard import add_hotkey
-import asyncio
+from keyboard import add_hotkey # В случае, когда надо отключить
+import asyncio # Во время выполнения, асинхронно выполняет, рядом с другими задачами
 
 from string import ascii_letters
 from core.tools.bool_tools import filter_bool
@@ -163,10 +167,10 @@ class Folder_make_list:
         # Код прерывает цикл, в _from_folder И _for_folder И negative_filter
         self.__ex_return = False
         try:
-            # Если Английская расскладка, то код будет выполнятся правильно.
+            # Если Английская расскладка, то код будет выполниться правильно.
             add_hotkey("shift + `", lambda: asyncio.run(self.__exit_return_break("shift + `")))
         except ValueError:
-            # Если Русская расскладка, то код будет выполнятся, после try except ValueError.
+            # Если Русская расскладка, то код будет выполниться, после try except ValueError.
             add_hotkey("shift + ё", lambda: asyncio.run(self.__exit_return_break("shift + ё")))
         # На других расскладках не проверялись.
 
@@ -234,7 +238,7 @@ class Folder_make_list:
         """
         Проверяет, является ли элемент строкой или списком строк.
 
-        item: Элемент для проверки.
+        Item: Элемент для проверки.
         """
         return isinstance(item, (str, list))
 
@@ -339,9 +343,9 @@ class Folder_make_list:
         """
         Эта функция фильтрует файлы изображений в указанном каталоге.
 
-        root (str): Путь к каталогу.
-        files (list): Список файлов в каталоге.
-        filter_work (bool): Флаг, указывающий, нужно ли фильтровать файлы.
+        Root (str): Путь к каталогу.
+        Files (list): Список файлов в каталоге.
+        Filter_work (bool): Флаг, указывающий, нужно ли фильтровать файлы.
 
         Возвращает:
         None: Ничего не возвращает, но изменяет список файлов.
@@ -485,15 +489,3 @@ if __name__ == "__main__":
 
 
     save_json_file(folder_path_list.image_list,indent=0)
-
-    # folder_path_list2.folder_list = r"E:\GB_project\ImageAISearch"
-    # folder_path_list2.find(filter_work=True)
-    # w = folder_path_list2.folder_list
-    # print(type(w))
-    #
-    # folder_path_list3 = Folder_make_list()
-    # folder_path_list3.find(folder_path_list2.folder_list)
-    #
-    #
-    #
-    # print(type(folder_path_list2.filter_work), folder_path_list2.filter_work)
