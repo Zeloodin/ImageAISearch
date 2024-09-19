@@ -11,8 +11,11 @@ from keyboard import add_hotkey # В случае, когда надо откл�
 import asyncio # Во время выполнения, асинхронно выполняет, рядом с другими задачами
 
 from string import ascii_letters
-from core.tools.bool_tools import filter_bool
 
+from tqdm import tqdm
+
+from core.tools.bool_tools import filter_bool
+from core.tools.variables import IMG_SUP_EXTS
 
 
 def isdir_makefolder(path_folder):
@@ -68,7 +71,7 @@ def filter_str_list(value: Union[List[str], str] = None):
 def search_in_list(finder: str, find_list: list):
     for item in find_list:
         # print(finder.find(item), finder, item)
-        if finder.find(item) != -1:
+        if finder.find(item) != -1 and find_list != [""]:
             return True
     return False
 
@@ -144,7 +147,8 @@ class Folder_make_list:
                  white_list: Optional[Union[List[str], str]] = None,
                  black_list: Optional[Union[List[str], str]] = None,
                  filter_work: Optional[Union[bool, str, int, float]] = False,
-                 append_white: Optional[Union[bool, str, int, float]] = False):
+                 append_white: Optional[Union[bool, str, int, float]] = False,
+                 image_filenames: Optional[List[str]] = []):
         """
         Конструктор класса Folder_make_list.
 
@@ -160,9 +164,16 @@ class Folder_make_list:
         self._black_list = black_list # Чёрный список путей, который фильтрует все списки.
         self._image_list = [] # Список путей изображений.
 
+        self._image_list = list(dict.fromkeys(list(self._image_list) + image_filenames))
+        # print(len(self._image_list))
+
         self._filter_work = filter_bool(filter_work)
         self._append_white = filter_bool(append_white)
 
+        # if not isinstance(image_filenames, NoneType) and self._image_list != image_filenames:
+        #     for string in tqdm(image_filenames):
+        #         if string not in self._image_list:
+        #             self._image_list.append(string)
 
         # Код прерывает цикл, в _from_folder И _for_folder И negative_filter
         self.__ex_return = False
@@ -248,7 +259,9 @@ class Folder_make_list:
              new_white_list: Optional[Union[List[str], str]] = None,
              new_black_list: Optional[Union[List[str], str]] = None,
              filter_work: Optional[Union[bool, str, int, float]] = False, # filter_while_working - Фильтровать во время работы
-             append_white: Optional[Union[bool, str, int, float]] = False):
+             append_white: Optional[Union[bool, str, int, float]] = False,
+             image_filenames: Optional[List[str]] = None):
+
         """
         Добавляет изображения из указанных папок в список изображений.
 
@@ -265,6 +278,18 @@ class Folder_make_list:
         3            new_white_list
         4                new_black_list
         """
+
+        # if not isinstance(image_filenames, NoneType) and self._image_list != image_filenames:
+        #     for string in tqdm(image_filenames):
+        #         if string not in self._image_list:
+        #             self._image_list.append(string)
+
+        print("Подготавливаем список")
+        print(f"Колличество элементов в списке: {len(self._image_list)}")
+        self._image_list = list(dict.fromkeys(list(self._image_list) + image_filenames))
+        print(f"Колличество элементов в списке: {len(self._image_list)}")
+
+        # print(len(self._image_list))
 
         # Отключает ex_return, переключает в исходное положение.
         self.__ex_return = False
@@ -288,13 +313,16 @@ class Folder_make_list:
             self._new_folder_list += self._new_white_list
 
         # self.from_folder ищет по списку к путь изображению, через фильтрацию.
+        print("Ищем по списку к путям ищображениям")
         self._from_folder(self._new_folder_list,
                          self._new_neg_folder_list,
                          self._new_white_list,
                          self._new_black_list,
                          filter_work = self._filter_work)
+        print("Собрали изображения в список")
 
         if not self._filter_work:
+            print("Переходим в фильтрацию, во время работы")
             # Если filter_work = True, проверяется во время поиска.
             # И не проверяется в negative_filter, так как, это лишняя проверка на уже пройденную фильтрацию.
             # self.negative_filter не работает, когда filter_work = True
@@ -323,6 +351,7 @@ class Folder_make_list:
                            new_white_list,
                            new_black_list)
 
+        print("Ищем в папках изображения")
         self._for_folder(filter_work)
 
     # Основная функция программы
@@ -350,14 +379,16 @@ class Folder_make_list:
         Возвращает:
         None: Ничего не возвращает, но изменяет список файлов.
         """
-        for file in files:
+
+        for file in tqdm(files):
             if self.__ex_return:  # Остановка цикла, если ex_return == True
                 break
             # Проверяем, является ли файл изображением
-            if file.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')):
+            if file.lower().endswith(IMG_SUP_EXTS): #('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')
                 if self.__ex_return:  # Остановка цикла, если ex_return == True
                     break
                 # Проверяем, есть ли файл в списке уже обработанных изображений
+
                 if os.path.join(root, file) not in self._image_list and not self.__ex_return:
                     # Если нужно фильтровать файлы или фильтр возвращает True для файла, добавляем файл в список
                     if not self._filter_work or self._filter_string(os.path.join(root, file)):
@@ -378,12 +409,22 @@ class Folder_make_list:
                            new_white_list=new_white_list,
                            new_black_list=new_black_list)
 
-        for img_lst in self._image_list:
+        print("Начинаем фильтровать список от негативного списка")
+        print(f"Всего изображений: {len(self._image_list)}")
+
+        # for i,img_lst in enumerate(tqdm(self._image_list)):
+        for i in range(len(self._image_list)-1,-1,-1):
+            img_lst = self._image_list[i]
+
+            # print(f"{i} Всего изображений: {len(self._image_list)}")
+
             if self.__ex_return:  # Остановка цикла, если ex_return == True
                 break
             if not self._filter_string(img_lst):
                 self._image_list.remove(img_lst)
                 # print("Remove", img_lst)
+
+        print(f"Всего профильтрованных изображений: {len(self._image_list)}")
 
     def _filter_string(self,img_lst):
         # _new_neg_folder_list == False,
@@ -432,7 +473,8 @@ class Folder_make_list:
         B = search_in_list(img_lst, self._new_black_list)
         BN = search_in_list(img_lst, self.__BLACK_NEGATIVE_LIST)
 
-        return (not N or W) and not B and not BN
+        result = (not N or W) and not B and not BN
+        return result
 
     def is_list_empty(self, new_folder_list = None,
                       new_neg_folder_list = None,
@@ -466,26 +508,26 @@ class Folder_make_list:
         del new_black_list
 
 
-if __name__ == "__main__":
-    from core.tools.json_tools import save_json_file
-
-
-    folder_path_list = Folder_make_list(folder_list = [r"ImageAISearch"],
-                                        neg_folder_list = [r"ImageAISearch\venv",
-                                                           r"ImageAISearch\folder_path",
-                                                           r"ImageAISearch\images"],
-                                        white_list = [r"ImageAISearch\folder_path\sky.png",
-                                                      r"ImageAISearch\images\1526.jpg"])
-
-    folder_path_list.find(filter_work=True,
-                          append_white=True)
-    folder_path_list.find(new_white_list= r"..\\..\\project_folders")
-
-
-
-    print(folder_path_list.image_list)
-
-
-
-
-    save_json_file(folder_path_list.image_list,indent=0)
+# if __name__ == "__main__":
+#     from core.tools.json_tools import save_json_file
+#
+#
+#     folder_path_list = Folder_make_list(folder_list = [r"ImageAISearch"],
+#                                         neg_folder_list = [r"ImageAISearch\venv",
+#                                                            r"ImageAISearch\folder_path",
+#                                                            r"ImageAISearch\images"],
+#                                         white_list = [r"ImageAISearch\folder_path\sky.png",
+#                                                       r"ImageAISearch\images\1526.jpg"])
+#
+#     folder_path_list.find(filter_work=True,
+#                           append_white=True)
+#     folder_path_list.find(new_white_list= r"..\\..\\project_folders")
+#
+#
+#
+#     print(folder_path_list.image_list)
+#
+#
+#
+#
+#     save_json_file(folder_path_list.image_list,indent=0)

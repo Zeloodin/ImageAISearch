@@ -21,8 +21,8 @@ def load_pkl(filename: (str, list) = PKL_FILE_PATH, temp_pkl: (list, str) = TEMP
     Функция возвращает список данных, загруженных из файла или списка.
 
     :param filename: Путь к файлу, для загрузки .pkl, или список данных, если файл отсутствует
-    :param temp_pkl: Список pkl, если отсутствует filename
-    :return: Возвращает список pkl
+    :param temp_pkl: Список pkl, если отсутствует filename,
+    :return: возвращает список pkl
     """
     # Инициализируем переменную для хранения всех изображений
     all_image_features = EMPTY_LIST
