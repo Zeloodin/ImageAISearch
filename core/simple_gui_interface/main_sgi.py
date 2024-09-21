@@ -501,6 +501,10 @@ class Main_gui_image_search:
             self.__save_every_n_json = self.__widget_is_int(self._window,
                                                             "-SAVE_EVERY_N_JSON-",
                                                             True)
+
+
+
+
             print("Собираем")
             await asyncio.sleep(0)
             self._window.start_thread(
@@ -514,11 +518,20 @@ class Main_gui_image_search:
                     self.__save_every_n_json,
                     window_PySimpleGUI=self._window,
                     get_widget_PySimpleGUI="-TEXT_COUNT_IMAGES-",
-                    update_PySimpleGUI=f"Всего изображений: {len(self.__gen_clip.image_list)}"
+                    update_PySimpleGUI=f"Всего изображений: {len(self.__gen_clip.get_image_list())}"
                 )
             )
 
-            if filter_bool(self._window["-CHBX_SAVE_IMAGE_LIST-"].get()):
+            BOOL_CHBX_SAVE_IMAGE_LIST = filter_bool(self._window['-CHBX_SAVE_IMAGE_LIST-'].get())
+            print(f"Проверяем, Авто Сохранение: {BOOL_CHBX_SAVE_IMAGE_LIST}")
+            if BOOL_CHBX_SAVE_IMAGE_LIST:
+                print(f"Проверяем на существование файла: {self.__IN_JSON_PATH}"
+                      f"\nСуществует файл: {os.path.isfile(self.__IN_JSON_PATH)}")
+                if not os.path.isfile(self.__IN_JSON_PATH):
+                    print(f"Создаём: {self.__IN_JSON_PATH}")
+                    isdir_makefolder("\\".join(self.__IN_JSON_PATH.split("\\")[:-1]))
+                print(f"Сохраняю список путей изображений в json файл: {self.__IN_JSON_PATH}")
+                print(f"Колличество изображений в списке: {len(self.__gen_clip.image_list)}")
                 save_json_file(self.__gen_clip.image_list,self.__IN_JSON_PATH, indent=0)
 
             self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
@@ -577,6 +590,10 @@ class Main_gui_image_search:
 
 
         elif event == "-BTN_SEARCH_TEXT-":
+            if len(load_pkl(self.__IN_PKL_PATH)) == 0:
+                print("Пожалуйста, обучите модель, а затем ищите по тексту, или изображению")
+                return None
+
             if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
                 self.__cleanup_temp()
 
@@ -592,8 +609,13 @@ class Main_gui_image_search:
                                           file_names_path=self.__IN_JSON_PATH)
 
         elif event == "-BTN_SEARCH_PATH-":
+            if len(load_pkl(self.__IN_PKL_PATH)) == 0:
+                print("Пожалуйста, обучите модель, а затем ищите по тексту, или изображению")
+                return None
+
             if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
                 self.__cleanup_temp()
+
             self.__gen_clip.searcher_clip(len_count=int(self._window["-RESULT_QUANTITY_IMAGES_OUT-"].get()),
                                           query_image_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
                                           is_str=False,
@@ -616,6 +638,8 @@ class Main_gui_image_search:
             if update_widget:
                 window[get_widget].update(self._value_int_temp)
         else:
+            print(window[get_widget].get())
+            self._value_int_temp = int(window[get_widget].get())
             if self._value_int_temp == 0:
                 self._value_int_temp = 100
             else:

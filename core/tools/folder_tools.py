@@ -330,7 +330,7 @@ class Folder_make_list:
             self._new_folder_list += self._new_white_list
 
         # self.from_folder ищет по списку к путь изображению, через фильтрацию.
-        print("Ищем по списку к путям ищображениям")
+        print("Ищем по списку к путям изображения")
         self._from_folder(self._new_folder_list,
                           self._new_neg_folder_list,
                           self._new_white_list,
@@ -415,6 +415,8 @@ class Folder_make_list:
                                    get_widget_PySimpleGUI,
                                    update_PySimpleGUI)
 
+        save_json_file(self._image_list, JSON_FILE_PATH)
+
     # Функция для фильтрации файлов изображений в каталоге
     def _filter_files(self,root, files, _filter_work,
                       window_PySimpleGUI = None,
@@ -458,7 +460,6 @@ class Folder_make_list:
                 # Сохраняем список изображений в self.__all_image_features через каждые N шагов
                 # self._image_list = self._image_list
                 print(len(self._image_list))
-                print()
                 if (window_PySimpleGUI and
                     get_widget_PySimpleGUI and
                     update_PySimpleGUI) :

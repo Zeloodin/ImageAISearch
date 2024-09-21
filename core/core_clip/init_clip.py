@@ -19,6 +19,8 @@ from sklearn.neighbors import NearestNeighbors
 import hnswlib
 import re
 
+from sklearn.utils._param_validation import InvalidParameterError
+
 from keyboard import add_hotkey # В случае, когда надо отключить
 import asyncio # Во время выполнения, асинхронно выполняет, рядом с другими задачами
 
@@ -849,7 +851,12 @@ class Generate_clip_features:
                 # self.__features это векторные представления изображений.
                 self.__knn = NearestNeighbors(n_neighbors=self.__k, algorithm='brute', metric='euclidean')
                 # Обучает объект NearestNeighbors на векторных представлениях изображений.
-                self.__knn.fit(self.__features)
+                try:
+                    self.__knn.fit(self.__features)
+                except InvalidParameterError:
+                    print("Ошибка. Пустая модель, пустой список изображений.")
+                    print("Не удалось найти в пустой модели, изображение")
+                    return None
                 # Ищет ближайшие соседей по векторным представлениям изображений.
                 # self.__indices это список индексов ближайших соседей.
                 # Возвращает список индексов ближайших соседей для каждого изображения.
