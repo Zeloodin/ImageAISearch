@@ -4,6 +4,8 @@ from pathlib import Path
 import PySimpleGUI as sg
 import torch
 from clip import clip
+import re
+import asyncio
 
 # Не получается ассихронизировать
 # Во время выполнения, где собираются, обрабатываются данные,
@@ -72,13 +74,29 @@ class Main_gui_image_search:
             finalize=True,
             margins=(10, 10),
             font=(None,12),
-            size=(1200, 700))
+            size=(1200, 800))
 
+        # Раньше это работало отлично.
+        # Сейчас, это перестало работать
+        # При других символах, будет вызываться ошибка.
+        # Надо в таких случаях, или выдавать ошибку в консоль, или заменять всё на ничего, кроме чисел.
+        # И да, Сохранять каждые 0 шагов, вызовет ошибку. Это надо запомнить.
         self._vcmd = (self._window.TKroot.register(self.__validate_integer), '%P')
         self._window['-RESULT_QUANTITY_IMAGES_OUT-'].widget.configure(validate='all', validatecommand=self._vcmd)
+        self._vcmd2 = (self._window.TKroot.register(self.__validate_integer), '%P')
+        self._window['-SAVE_EVERY_N_JSON-'].widget.configure(validate='all', validatecommand=self._vcmd2)
 
         if self.__gen_clip.image_list:
             self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
+        else:
+            if self.__gen_clip.pickle_file:
+                self.__gen_clip.image_list = [n.get("image_id") for n in self.__gen_clip.pickle_file]
+                self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
+                save_json_file(self.__gen_clip.image_list, self.__IN_JSON_PATH)
+
+        if self.__gen_clip.pickle_file:
+            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанных изображений: {len(self.__gen_clip.pickle_file)}")
+
 
 
         self._window['-CHBX_REPLACE_MODEL-'].set_focus()
@@ -154,10 +172,10 @@ class Main_gui_image_search:
         # Выводим информацию о выбранном устройстве
         print("device:", self.__device)
 
-        self.__replace_model = self._window['-CHBX_REPLACE_MODEL-']
+        self.__replace_model = filter_bool(self._window['-CHBX_REPLACE_MODEL-'].get())
 
         # Проверяем, нужно ли заменить модель и предобработку
-        if self.__replace_model or (self.__gen_clip.model == None and self.__gen_clip.preprocess == None):
+        if self.__replace_model or (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
             print("Создаём модель и препроцессор")
             # Выводим сообщение о создании модели и препроцессоре
             print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
@@ -298,7 +316,7 @@ class Main_gui_image_search:
             [self._build_make_folder_list_frame(),
             self._build_clip_tools_frame()]
         ]
-        return sg.Frame("", layout_basic_launch_parameters, size=(800, 300))
+        return sg.Frame("", layout_basic_launch_parameters, size=(800, 350))
 
     def _build_make_folder_list_frame(self):
         layout_make_folder_list = [
@@ -309,9 +327,12 @@ class Main_gui_image_search:
                 [sg.Checkbox(key="-CHBX_APPEND_WHITE_LIST-", text='Добавление из белого списка', default=False)],
                 [sg.Checkbox(key="-CHBX_FILTER_WORK_LIST-", text='Фильтр во время сбора', default=True)],
                 [sg.T("Всего изображений: 0", key="-TEXT_COUNT_IMAGES-")],
-                [sg.T("Всего обработанных изображений: 0", key="-TEXT_RESULT_COUNT_IMAGES-")]
+                [sg.T("Всего обработанных изображений: 0", key="-TEXT_RESULT_COUNT_IMAGES-")],
+                [sg.T(text="Сохранять через каждые"),
+                sg.I(key="-SAVE_EVERY_N_JSON-", default_text=100, size=(10, 0)),
+                sg.T(text="шагов")],
             ]
-        return sg.Frame("", layout_make_folder_list)
+        return sg.Frame("", layout_make_folder_list, size=(400, 500))
 
     def _build_clip_tools_frame(self):
         layout_clip_tools = [
@@ -345,7 +366,7 @@ class Main_gui_image_search:
     def close(self):
         self._window.close()
 
-    def process_event(self, event, values):
+    async def process_event(self, event, values):
         try: # Если по индексу event, в словаре не None, тогда присваиваем значение к переменной  value.
              # Иначе, переменную освобождаем, от присвоенных значений, value = None
             value = values[event]
@@ -404,6 +425,7 @@ class Main_gui_image_search:
 
 
         elif event == "-FIBR_JSON_LOAD_PATH-":
+            await asyncio.sleep(0)
             self._window['-IN_JSON_PATH-'].update(value)
             self.__IN_JSON_PATH = value
             print(f"Загружаем список путей изображений из: {value}")
@@ -411,6 +433,7 @@ class Main_gui_image_search:
             print("Загрузка завершено")
 
         elif event == "-FIBR_JSON_SAVE_PATH-":
+            await asyncio.sleep(0)
             self._window['-IN_JSON_PATH-'].update(value)
             self.__IN_JSON_PATH = value
             print(f"Сохраняем список путей изображений в: {value}")
@@ -418,6 +441,7 @@ class Main_gui_image_search:
             print("Сохранение завершено")
 
         elif event == "-FIBR_PKL_LOAD_PATH-":
+            await asyncio.sleep(0)
             self._window['-IN_PKL_PATH-'].update(value)
             self.__IN_PKL_PATH = value
             print(f"Загружаем базу обработанных изображений из: {value}")
@@ -425,6 +449,7 @@ class Main_gui_image_search:
             print("Загрузка завершено")
 
         elif event == "-FIBR_PKL_SAVE_PATH-":
+            await asyncio.sleep(0)
             self._window['-IN_PKL_PATH-'].update(value)
             self.__IN_PKL_PATH = value
             print(f"Сохраняем базу обработанных изображений в: {value}")
@@ -436,46 +461,64 @@ class Main_gui_image_search:
             multilist = self._window["-MULTI_POSITIVE_PATH_LIST-"].get()
             files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
             result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
+            await asyncio.sleep(0)
             self._window["-MULTI_POSITIVE_PATH_LIST-"].update(result)
 
         elif event == "-BTN_NEGATIVE_PATH_LIST-":
             multilist = self._window["-MULTI_NEGATIVE_PATH_LIST-"].get()
             files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
             result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
+            await asyncio.sleep(0)
             self._window["-MULTI_NEGATIVE_PATH_LIST-"].update(result)
 
         elif event == "-BTN_WHITE_PATH_LIST-":
             multilist = self._window["-MULTI_WHITE_PATH_LIST-"].get()
             files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
             result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
+            await asyncio.sleep(0)
             self._window["-MULTI_WHITE_PATH_LIST-"].update(result)
 
         elif event == "-BTN_BLACK_PATH_LIST-":
             multilist = self._window["-MULTI_BLACK_PATH_LIST-"].get()
             files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
             result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
+            await asyncio.sleep(0)
             self._window["-MULTI_BLACK_PATH_LIST-"].update(result)
+
 
 
         elif event == "-BTN_FOLDER_MAKE_LIST-":
             print("Собираем Изображения")
 
+
+
             self.__new_folder_list = self._window["-MULTI_POSITIVE_PATH_LIST-"].get().split("\n")
             self.__new_neg_folder_list = self._window["-MULTI_NEGATIVE_PATH_LIST-"].get().split("\n")
             self.__new_white_list = self._window["-MULTI_WHITE_PATH_LIST-"].get().split("\n")
             self.__new_black_list = self._window["-MULTI_BLACK_PATH_LIST-"].get().split("\n")
-            self.__filter_work = self._window["-CHBX_FILTER_WORK_LIST-"].get()
+            self.__filter_work = filter_bool(self._window["-CHBX_FILTER_WORK_LIST-"].get())
             self.__append_white = filter_bool(self._window["-CHBX_APPEND_WHITE_LIST-"].get())
+            self.__save_every_n_json = self.__widget_is_int(self._window,
+                                                            "-SAVE_EVERY_N_JSON-",
+                                                            True)
             print("Собираем")
+            await asyncio.sleep(0)
+            self._window.start_thread(
+                lambda: self.__gen_clip.find_image_list(
+                    self.__new_folder_list,
+                    self.__new_neg_folder_list,
+                    self.__new_white_list,
+                    self.__new_black_list,
+                    self.__filter_work,
+                    self.__append_white,
+                    self.__save_every_n_json,
+                    window_PySimpleGUI=self._window,
+                    get_widget_PySimpleGUI="-TEXT_COUNT_IMAGES-",
+                    update_PySimpleGUI=f"Всего изображений: {len(self.__gen_clip.image_list)}"
+                )
+            )
 
-            self.__gen_clip.find_image_list(self.__new_folder_list,
-                                            self.__new_neg_folder_list,
-                                            self.__new_white_list,
-                                            self.__new_black_list,
-                                            self.__filter_work,
-                                            self.__append_white)
-
-            if self._window["-CHBX_SAVE_IMAGE_LIST-"].get():
+            if filter_bool(self._window["-CHBX_SAVE_IMAGE_LIST-"].get()):
                 save_json_file(self.__gen_clip.image_list,self.__IN_JSON_PATH, indent=0)
 
             self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
@@ -497,10 +540,10 @@ class Main_gui_image_search:
             # Выводим информацию о выбранном устройстве
             print("device:", self.__device)
 
-            self.__replace_model = self._window['-CHBX_REPLACE_MODEL-']
+            self.__replace_model = filter_bool(self._window['-CHBX_REPLACE_MODEL-'].get())
 
             # Проверяем, нужно ли заменить модель и предобработку
-            if self.__replace_model or (self.__gen_clip.model == None and self.__gen_clip.preprocess == None):
+            if self.__replace_model or (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
                 print("Создаём модель и препроцессор")
                 # Выводим сообщение о создании модели и препроцессоре
                 print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
@@ -515,19 +558,33 @@ class Main_gui_image_search:
             # Устанавливаем частоту сохранения результатов
             self.__save_every_n = 100
 
-            print(fr"Всего изображений {len(self.__gen_clip.get_image_list())}")
-            print(f"Обработанно изображений: {len(self.__gen_clip.pickle_file)}")
+            if self.__gen_clip.get_image_list() != None:
+                print(fr"Всего изображений {len(self.__gen_clip.get_image_list())}")
+            if self.__gen_clip.pickle_file != None:
+                print(f"Обработанно изображений: {len(self.__gen_clip.pickle_file)}")
 
             # Создаём векторные представления изображений
             print("Создаём векторные представления изображений")
-            self.__gen_clip.create_clip_image_features(self.__gen_clip.pickle_file, self.__gen_clip.image_list,self.__save_every_n)
+            await asyncio.sleep(0)
+            self._window.start_thread(
+                lambda: self.__gen_clip.create_clip_image_features(
+                    self.__gen_clip.pickle_file, self.__gen_clip.image_list,self.__save_every_n
+                )
+            )
+            # self.__gen_clip.create_clip_image_features(self.__gen_clip.pickle_file, self.__gen_clip.image_list,self.__save_every_n)
+
             print("create_clip_image_features finished")
 
 
         elif event == "-BTN_SEARCH_TEXT-":
-            if self._window["-CHBX_CLEANUP_FIND_RES-"]:
+            if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
                 self.__cleanup_temp()
-            self.__gen_clip.searcher_clip(len_count=int(self._window["-RESULT_QUANTITY_IMAGES_OUT-"].get()),
+
+            self._result_quantity_images = self.__widget_is_int(self._window,
+                                                                "-RESULT_QUANTITY_IMAGES_OUT-",
+                                                                update_widget=True)
+
+            self.__gen_clip.searcher_clip(len_count=self._result_quantity_images,
                                           query_str_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
                                           is_str=True,
                                           image_filenames=self.__gen_clip.image_list,
@@ -535,7 +592,7 @@ class Main_gui_image_search:
                                           file_names_path=self.__IN_JSON_PATH)
 
         elif event == "-BTN_SEARCH_PATH-":
-            if self._window["-CHBX_CLEANUP_FIND_RES-"]:
+            if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
                 self.__cleanup_temp()
             self.__gen_clip.searcher_clip(len_count=int(self._window["-RESULT_QUANTITY_IMAGES_OUT-"].get()),
                                           query_image_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
@@ -551,6 +608,22 @@ class Main_gui_image_search:
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir, ignore_errors=True)
 
+    def __widget_is_int(self,window, get_widget, update_widget=False, return_res=True):
+        if not isfloat(window[get_widget].get()):
+            self._value_int_temp = re.sub(r'[^0-9]', "", window[get_widget].get())
+            if not isfloat(self._value_int_temp) or self._value_int_temp == 0:
+                self._value_int_temp = 100
+            if update_widget:
+                window[get_widget].update(self._value_int_temp)
+        else:
+            if self._value_int_temp == 0:
+                self._value_int_temp = 100
+            else:
+                self._value_int_temp = int(window[get_widget].get())
+        if return_res:
+            return int(self._value_int_temp)
+        else:
+            return None
 
         # if event == 'Копировать' and self._widget.select_present():
         #     text = self._widget.selection_get()
@@ -581,12 +654,12 @@ class Main_gui_image_search:
             try:
                 value = int(text)
             except ValueError:
-                value = -1
+                value = 100
         return True if 0 <= value <= 1000000 else False  # Return True if valid input
 
 
 # Запуск программы
-def start_run():
+async def start_run():
     gui_image_search = Main_gui_image_search()
 
     # Event loop
@@ -597,6 +670,7 @@ def start_run():
 
         if event_id in {sg.WIN_CLOSED}:
             break
-        gui_image_search.process_event(event,values)
+
+        await gui_image_search.process_event(event,values)
 
     gui_image_search.close()

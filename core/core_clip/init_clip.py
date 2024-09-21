@@ -183,7 +183,16 @@ class Generate_clip_features:
                         new_white_list: Optional[Union[List[str], str]] = None,
                         new_black_list: Optional[Union[List[str], str]] = None,
                         filter_work: Optional[Union[bool, str, int, float]] = None,
-                        append_white: Optional[Union[bool, str, int, float]] = None):
+                        append_white: Optional[Union[bool, str, int, float]] = None,
+                        save_every_n:int = None,
+                        window_PySimpleGUI = None,
+                        get_widget_PySimpleGUI = None,
+                        update_PySimpleGUI = None):
+
+        if not isinstance(save_every_n, NoneType):
+            self.__save_every_n = save_every_n
+        else:
+            self.__save_every_n = 100
 
         new_folder_list = new_folder_list if new_folder_list != [""] else None
         new_neg_folder_list = new_neg_folder_list if new_neg_folder_list != [""] else None
@@ -219,7 +228,11 @@ class Generate_clip_features:
                                 new_black_list=self.__new_black_list,
                                 filter_work=self.__new_filter_work,
                                 append_white=self.__new_append_white,
-                                image_filenames=self.__image_filenames)
+                                image_filenames=self.__image_filenames,
+                                save_every_n=self.__save_every_n,
+                                window_PySimpleGUI=window_PySimpleGUI,
+                                get_widget_PySimpleGUI=get_widget_PySimpleGUI,
+                                update_PySimpleGUI=update_PySimpleGUI)
 
         # С префиксом new_, они не сохраняются.
         print("Очищаем временные атрибуты")
@@ -257,7 +270,10 @@ class Generate_clip_features:
     @property
     def pickle_file(self):
         # Возвращаем список векторных представлений изображений через свойство
-        return self.__all_image_features
+        try:
+            return self.__all_image_features
+        except AttributeError:
+            return None
 
     @pickle_file.setter
     def pickle_file(self,
@@ -389,9 +405,6 @@ class Generate_clip_features:
         # Загрузка всех изображений из файла или списка
         print("Загрузка всех изображений из файла или списка")
         try:
-            print(self.__filename_pkl)
-            print(self.__temp_pkl)
-
             self.__all_image_features = load_pkl(self.__filename_pkl, self.__temp_pkl)
         except Exception as e:
             self.__all_image_features = None
@@ -432,6 +445,8 @@ class Generate_clip_features:
             # print(image_id)
             try:
                 image = Image.open(image_id)
+                if image.mode != "RGBA":
+                    image = image.convert('RGBA')
                 # print("Получаем векторные представления изображения")
                 # Получаем векторные представления изображения
                 image_features = self.get_features(image)
@@ -464,7 +479,12 @@ class Generate_clip_features:
         # Сохраняем список изображений в self.__all_image_features
         self.__all_image_features = all_image_features
 
-
+    @staticmethod
+    def pil_to_numpy(img):
+        """Конвертирует объект PIL Image в NumPy тензор."""
+        img = img.convert('RGBA')
+        img = np.asarray(img)
+        return img
 
     @staticmethod
     def convert_image(input_data: Union[str, Image.Image], is_str: bool = False) -> Optional[Image.Image]:
@@ -478,6 +498,12 @@ class Generate_clip_features:
         Возвращаемый тип данных:
             - Объект PIL.Image
         """
+
+        def pil_to_numpy(img):
+            """Конвертирует объект PIL Image в NumPy тензор."""
+            img = img.convert('RGBA')
+            img = np.asarray(img)
+            return img
 
         # Если input_data - строка, значит это путь к файлу
         if isinstance(input_data, str):
@@ -503,6 +529,8 @@ class Generate_clip_features:
                 return image if not is_str else False
             
         elif isinstance(input_data, Image.Image):
+            if input_data.mode != "RGBA":
+                input_data.convert("RGBA")
             # Если input_data - уже объект PIL.Image, просто вернуть его
             # (если is_str = True, то вернуть False)
             return input_data if not is_str else False
@@ -595,14 +623,28 @@ class Generate_clip_features:
         if isinstance(path_clip_image, NoneType):
             self.__path_clip_image = PKL_FILE_PATH
 
+        # FIX: IndexError: list index out of range
+        self.__file_names_path = file_names_path or self.__file_names_path or JSON_FILE_PATH
+        self.__file_names = file_names or load_json_file(self.__file_names_path)
+        print(f"file_names: {file_names}")
+        print(f"file_names_path: {len(load_json_file(self.__file_names_path))}")
         # Загрузка данных из файла
         # Если характеристики изображений (image_features) отсутствуют,
         # они загружаются из файла (self.__path_clip_image).
         # Загрузка признаков изображений, если они еще не загружены
         print("Загрузка признаков изображений")
         if path.exists(self.__path_clip_image):
-            if isinstance(image_features, NoneType):
-                self.__image_features = pk.load(open(self.__path_clip_image, "rb"))
+            print(f"Проверяем файл {self.__path_clip_image}")
+            if isinstance(image_features, NoneType) and isinstance(self.__image_features, NoneType) or isinstance(self.__image_features, NoneType):
+                print("Загружаю image_features")
+                try:
+                    self.__image_features = pk.load(open(self.__path_clip_image, "rb"))
+                except EOFError:
+                    print(f"Повреждён файл: {self.__path_clip_image}")
+                    print("Возможно это случилось, когда вы нажали на поиск по тексту, \nи установлена галочка на автоудаление, и во время обучалась модель.")
+                    return None
+                except pk.UnpicklingError:
+                    print(f"Данные pickle были усечены: {self.__path_clip_image}")
         else:
             print(f"Простите, не удаётся найти файл, {self.__path_clip_image}")
             print("Попробуйте нажать на кнопку | Начать обучать модель |")
@@ -619,7 +661,6 @@ class Generate_clip_features:
         self.__features = []
         # Преобразование характеристик изображений в NumPy массив
         for image in self.__image_features:
-
             if self.__ex_return:  # Остановка цикла, если ex_return == True
                 break
 
@@ -667,7 +708,7 @@ class Generate_clip_features:
             # включая максимальное количество элементов (max_elements),
             # значение параметра ef_construction и значение параметра M.
             self.__index = hnswlib.Index(space='l2', dim=self.__dim)
-            self.__index.init_index(max_elements=len(self.__features), ef_construction=200, M=16)
+            self.__index.init_index(max_elements=len(self.__features), ef_construction=2500, M=32)
                                                 #len(self.__features)# ef_construction=100, M=16
             # Добавление элементов в индекс
             self.__index.add_items(self.__features)
@@ -821,6 +862,7 @@ class Generate_clip_features:
                 ##########################
 
                 # Печатает результаты поиска ближайших соседей
+                print("Печатает результаты поиска ближайших соседей")
                 print(self.__indices)
 
                 ##########################
@@ -836,32 +878,35 @@ class Generate_clip_features:
                     if self.__ex_return:  # Остановка цикла, если ex_return == True
                         break
 
-                    # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
-                    try:
-                        # Переменная, которая хранит путь к изображению
-                        self.__in_path = self.__file_names[x]
-                        print(self.__in_path)
-                        # Открываеи изображение с указанным путём и сохраняеи его в self.__img1
-                        self.__img1 = Image.open(self.__in_path)
+                # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
+                # try:
+                    print(f"len file_names:{len(self.__file_names)}, index x:{x}, i:{i}")
 
-                        # Переменные, которые хранят название и расширение файла
-                        # self.__filename - имя файла без расширения
-                        self.__filename = ".".join(self.__in_path.split("\\")[-1].split(".")[:-1])
-                        # self.__file_extension - расширение файла
-                        self.__file_extension = "." + self.__in_path.split("\\")[-1].split(".")[-1]
-                        # Выводим имя и расширение
-                        print(self.__filename, self.__file_extension)
+                    # FIX: IndexError: list index out of range
+                    # Переменная, которая хранит путь к изображению
+                    self.__in_path = self.__file_names[x]
+                    print(self.__in_path)
+                    # Открываеи изображение с указанным путём и сохраняем его в self.__img1
+                    self.__img1 = Image.open(self.__in_path)
 
-                        # Сохраняет изображение в папку images_find (переменная PATH_SEARCH_RES) (Если нет папки, то создает её)
-                        # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
-                        isdir_makefolder(PATH_SEARCH_RES)
-                        # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
-                        self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
-                        # Добавляет изображение в список self.__found_images
-                        self.__found_images.append(np.array(self.__img1))
-                    except Exception as e:
-                        print(e)
-                        continue
+                    # Переменные, которые хранят название и расширение файла
+                    # self.__filename - имя файла без расширения
+                    self.__filename = ".".join(self.__in_path.split("\\")[-1].split(".")[:-1])
+                    # self.__file_extension - расширение файла
+                    self.__file_extension = "." + self.__in_path.split("\\")[-1].split(".")[-1]
+                    # Выводим имя и расширение
+                    print(self.__filename, self.__file_extension)
+
+                    # Сохраняет изображение в папку images_find (переменная PATH_SEARCH_RES) (Если нет папки, то создает её)
+                    # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
+                    isdir_makefolder(PATH_SEARCH_RES)
+                    # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
+                    self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
+                    # Добавляет изображение в список self.__found_images
+                    self.__found_images.append(np.array(self.__img1))
+                # except Exception as e:
+                #     print(e)
+                #     continue
 
     def fit_NearestNeighbors(self, file_names: Optional[List[str]] = None, file_names_path: Optional[str] = None) -> None:
         """
@@ -913,7 +958,7 @@ class Generate_clip_features:
         print(f"Найдено изображений: {len(self.__image_filenames)}")
 
         # Создаем векторные представления изображений
-        self.create_clip_image_features(self.__all_image_features, self.__image_filenames)
+        self.create_clip_image_features(self.__all_image_features, self.__image_filenames, self.__save_every_n)
         print("create_clip_image_features finished")
 
 # if __name__ == "__main__":

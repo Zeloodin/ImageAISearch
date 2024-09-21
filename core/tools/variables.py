@@ -22,7 +22,7 @@ IMG_EXTS = Image.registered_extensions()
 # supported_extensions
 IMG_SUP_EXTS = tuple(ex for ex, f in IMG_EXTS.items() if f in Image.OPEN)
 IMG_FILE_TYPES = (tuple(('Images', f"*{ex}*") for ex in
-                        ('.png', '.apng', '.bmp', '.jfif', '.jpe', '.jpeg', '.tif', '.tiff', '.tga', '.tga', '.webp'))+
+                        ('.png', '.apng', '.bmp', '.jfif', '.jpg', '.jpe', '.jpeg', '.tif', '.tiff', '.tga', '.tga', '.webp'))+
                   # (tuple((f, f"*{ex}*") for ex, f  in Image.registered_extensions().items())) +
                   (("ALL Files", "*"),))
 JSON_FILE_TYPES = (("Json files", "*.json*"), ("ALL Files", "*"))

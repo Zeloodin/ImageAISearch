@@ -14,8 +14,9 @@ from string import ascii_letters
 
 from tqdm import tqdm
 
+from core.tools.json_tools import save_json_file
 from core.tools.bool_tools import filter_bool
-from core.tools.variables import IMG_SUP_EXTS
+from core.tools.variables import IMG_SUP_EXTS, JSON_FILE_PATH
 
 
 def isdir_makefolder(path_folder):
@@ -25,6 +26,11 @@ def isdir_makefolder(path_folder):
     Аргументы:
     - path_folder (str): Путь к папке, которую нужно проверить и создать.
     """
+    # Если папка существует, вернуть True.
+    # Завершение функции, если существует путь папки.
+    if os.path.isdir(path_folder):
+        return True
+
     ascii_upper = list(dict.fromkeys(ascii_letters.upper()))
     # Создаем список заглавных букв ASCII для определения корневых дисков
     letter_directory = tuple([letter + ":\\" for letter in ascii_upper])
@@ -41,11 +47,13 @@ def isdir_makefolder(path_folder):
     temp_list = temp_list.split("\\")
     # Разделяем путь на список подпутей
     min_len = len(str(Path.cwd()).split("\\"))+1 if tmp_first else len(temp_list[1:])
+    # print(f"Уровни для новой папки: {min_len}")
     # Определяем минимальную длину списка подпутей, чтобы избежать создания лишних папок
-    for i in range(len(temp_list)+1)[min_len:]:
+    # print(range(len(temp_list)+1)[min_len-1:])
+    for i in range(len(temp_list)+1)[min_len-1:]:
         res_path = "\\".join(temp_list[:i])
         # Формируем путь к папке, которую нужно проверить
-        print(res_path)
+        # print(res_path)
         # Выводим путь к папке для отладки
         if not os.path.isdir(res_path):
             os.mkdir(res_path)
@@ -260,7 +268,11 @@ class Folder_make_list:
              new_black_list: Optional[Union[List[str], str]] = None,
              filter_work: Optional[Union[bool, str, int, float]] = False, # filter_while_working - Фильтровать во время работы
              append_white: Optional[Union[bool, str, int, float]] = False,
-             image_filenames: Optional[List[str]] = None):
+             image_filenames: Optional[List[str]] = None,
+             save_every_n:int = None,
+             window_PySimpleGUI = None,
+             get_widget_PySimpleGUI = None,
+             update_PySimpleGUI = None):
 
         """
         Добавляет изображения из указанных папок в список изображений.
@@ -283,6 +295,11 @@ class Folder_make_list:
         #     for string in tqdm(image_filenames):
         #         if string not in self._image_list:
         #             self._image_list.append(string)
+
+        if not isinstance(save_every_n, NoneType):
+            self.__save_every_n = save_every_n
+        else:
+            self.__save_every_n = 100
 
         print("Подготавливаем список")
         print(f"Колличество элементов в списке: {len(self._image_list)}")
@@ -315,10 +332,14 @@ class Folder_make_list:
         # self.from_folder ищет по списку к путь изображению, через фильтрацию.
         print("Ищем по списку к путям ищображениям")
         self._from_folder(self._new_folder_list,
-                         self._new_neg_folder_list,
-                         self._new_white_list,
-                         self._new_black_list,
-                         filter_work = self._filter_work)
+                          self._new_neg_folder_list,
+                          self._new_white_list,
+                          self._new_black_list,
+                          filter_work = self._filter_work,
+                          save_every_n= self.__save_every_n,
+                          window_PySimpleGUI=window_PySimpleGUI,
+                          get_widget_PySimpleGUI=get_widget_PySimpleGUI,
+                          update_PySimpleGUI=update_PySimpleGUI)
         print("Собрали изображения в список")
 
         if not self._filter_work:
@@ -335,7 +356,11 @@ class Folder_make_list:
                     new_neg_folder_list=None,
                     new_white_list=None,
                     new_black_list=None,
-                    filter_work:bool = False):
+                    filter_work:bool = False,
+                    save_every_n:int = None,
+                    window_PySimpleGUI = None,
+                    get_widget_PySimpleGUI = None,
+                    update_PySimpleGUI = None):
         """
         Функция для поиска изображений в папках.
 
@@ -345,6 +370,11 @@ class Folder_make_list:
         new_black_list: Список путей к папкам, которые запрещают добавлять в image_list, и запрещает добавлять white_list.
         """
 
+        if not isinstance(save_every_n, NoneType):
+            self.__save_every_n = save_every_n
+        else:
+            self.__save_every_n = 100
+
         # Проверяем пустые списки и заменяем их на соответствующие значения из self
         self.is_list_empty(new_folder_list,
                            new_neg_folder_list,
@@ -352,10 +382,25 @@ class Folder_make_list:
                            new_black_list)
 
         print("Ищем в папках изображения")
-        self._for_folder(filter_work)
+        self._for_folder(filter_work, self.__save_every_n,
+                                   window_PySimpleGUI,
+                                   get_widget_PySimpleGUI,
+                                   update_PySimpleGUI)
 
     # Основная функция программы
-    def _for_folder(self,_filter_work):
+    def _for_folder(self,
+                    _filter_work,
+                    save_every_n:int = None,
+                    window_PySimpleGUI = None,
+                    get_widget_PySimpleGUI = None,
+                    update_PySimpleGUI = None):
+
+        if not isinstance(save_every_n, NoneType):
+            self.__save_every_n = save_every_n
+        else:
+            self.__save_every_n = 100
+
+        self._folder_counter = 0
         # Проходим по всем папкам в списке
         for folder in self._new_folder_list:
             if self.__ex_return:  # Остановка цикла, если ex_return == True
@@ -365,10 +410,16 @@ class Folder_make_list:
                 if self.__ex_return:  # Остановка цикла, если ex_return == True
                     break
                 # Вызываем функцию фильтрации файлов для каждого каталога
-                self._filter_files(root, files, self._filter_work)
+                self._filter_files(root, files, self._filter_work,
+                                   window_PySimpleGUI,
+                                   get_widget_PySimpleGUI,
+                                   update_PySimpleGUI)
 
     # Функция для фильтрации файлов изображений в каталоге
-    def _filter_files(self,root, files, _filter_work):
+    def _filter_files(self,root, files, _filter_work,
+                      window_PySimpleGUI = None,
+                      get_widget_PySimpleGUI = None,
+                      update_PySimpleGUI = None):
         """
         Эта функция фильтрует файлы изображений в указанном каталоге.
 
@@ -381,6 +432,7 @@ class Folder_make_list:
         """
 
         for file in tqdm(files):
+            self._folder_counter += 1
             if self.__ex_return:  # Остановка цикла, если ex_return == True
                 break
             # Проверяем, является ли файл изображением
@@ -399,6 +451,19 @@ class Folder_make_list:
                         # Удаляем файл из списка изображений
                         # print("Remove", root, file)
                         continue
+
+            if self._folder_counter % self.__save_every_n == 0:
+                # Сохраняем лист путей изображений в файл json
+                save_json_file(self._image_list, JSON_FILE_PATH)
+                # Сохраняем список изображений в self.__all_image_features через каждые N шагов
+                # self._image_list = self._image_list
+                print(len(self._image_list))
+                print()
+                if (window_PySimpleGUI and
+                    get_widget_PySimpleGUI and
+                    update_PySimpleGUI) :
+                    window_PySimpleGUI[get_widget_PySimpleGUI].update(update_PySimpleGUI)
+
 
     def _negative_filter(self, new_neg_folder_list=None,
                         new_white_list=None,
