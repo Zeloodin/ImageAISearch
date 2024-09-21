@@ -481,7 +481,7 @@ def update_requirements(initial_installation=False):
 
 
 def launch_ImageAISearch():
-    run_cmd(f"installer_files\conda\python.exe run.py {flags}", environment=True)
+    run_cmd(f"installer_files\env\python.exe run.py {flags}", environment=True)
 
 
 if __name__ == "__main__":
