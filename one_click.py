@@ -323,7 +323,7 @@ def install_ImageAISearch():
         "A": "NVIDIA",
         # "B": "AMD",
         # "C": "APPLE",
-        # "D": "INTEL",
+        "D": "INTEL",
         "N": "NONE"
     }
 
@@ -365,8 +365,8 @@ def install_ImageAISearch():
     #         sys.exit(1)
     # elif is_linux() and selected_gpu in ["APPLE", "NONE"]:
     #     install_pytorch += "--index-url https://download.pytorch.org/whl/cpu"
-    # elif selected_gpu == "INTEL":
-    #     install_pytorch = "python -m pip install torch==2.1.0a0 torchvision==0.16.0a0 torchaudio==2.1.0a0 intel-extension-for-pytorch==2.1.10 --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/"
+    elif selected_gpu == "INTEL":
+        install_pytorch = "python -m pip install torch==2.1.0a0 torchvision==0.16.0a0 torchaudio==2.1.0a0 intel-extension-for-pytorch==2.1.10 --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/"
 
     # Install Git and then Pytorch
     print_big_message("Installing PyTorch.")
@@ -377,12 +377,12 @@ def install_ImageAISearch():
         print_big_message("Installing the CUDA runtime libraries.")
         run_cmd(f"conda install -y -c \"nvidia/label/{'cuda-12.1.1' if use_cuda118 == 'N' else 'cuda-11.8.0'}\" cuda-runtime", assert_success=True, environment=True)
 
-    # if selected_gpu == "INTEL":
-    #     # Install oneAPI dependencies via conda
-    #     print_big_message("Installing Intel oneAPI runtime libraries.")
-    #     run_cmd("conda install -y -c intel dpcpp-cpp-rt=2024.0 mkl-dpcpp=2024.0")
-    #     # Install libuv required by Intel-patched torch
-    #     run_cmd("conda install -y libuv")
+    if selected_gpu == "INTEL":
+        # Install oneAPI dependencies via conda
+        print_big_message("Installing Intel oneAPI runtime libraries.")
+        run_cmd("conda install -y -c intel dpcpp-cpp-rt=2024.0 mkl-dpcpp=2024.0")
+        # Install libuv required by Intel-patched torch
+        run_cmd("conda install -y libuv")
 
     # Install the webui requirements
     update_requirements(initial_installation=True)
@@ -467,6 +467,8 @@ def update_requirements(initial_installation=False):
     run_cmd("python -m pip install -r temp_requirements.txt --upgrade", assert_success=True, environment=True)
     os.remove('temp_requirements.txt')
 
+    run_cmd(f"install_requirements_conda.bat")
+
     # Проверьте наличие '+cu' или '+rocm' в строке версии, чтобы определить, использует ли torch CUDA или ROCm. Проверьте также наличие pytorch-cuda для обратной совместимости
     if not any((is_cuda, is_rocm)) and run_cmd("conda list -f pytorch-cuda | grep pytorch-cuda", environment=True, capture_output=True).returncode == 1:
         clear_cache()
@@ -474,8 +476,6 @@ def update_requirements(initial_installation=False):
 
     # if not os.path.exists("repositories/"):
     #     os.mkdir("repositories")
-
-    run_cmd(f"install_requirements_conda.bat")
 
     clear_cache()
 
