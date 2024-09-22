@@ -74,7 +74,7 @@ class Main_gui_image_search:
             finalize=True,
             margins=(10, 10),
             font=(None,12),
-            size=(1200, 800))
+            size=(1250, 800))
 
         # Раньше это работало отлично.
         # Сейчас, это перестало работать
@@ -97,8 +97,7 @@ class Main_gui_image_search:
         if self.__gen_clip.pickle_file:
             self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанных изображений: {len(self.__gen_clip.pickle_file)}")
 
-
-
+        self._window['-CHBX_CHECK_MODEL-'].set_focus()
         self._window['-CHBX_REPLACE_MODEL-'].set_focus()
         self._window['-BTN_CLIP_TRAIN-'].set_focus()
         self._window['-CHBX_FILTER_WORK_LIST-'].set_focus()
@@ -316,7 +315,7 @@ class Main_gui_image_search:
             [self._build_make_folder_list_frame(),
             self._build_clip_tools_frame()]
         ]
-        return sg.Frame("", layout_basic_launch_parameters, size=(800, 350))
+        return sg.Frame("", layout_basic_launch_parameters, size=(830, 350))
 
     def _build_make_folder_list_frame(self):
         layout_make_folder_list = [
@@ -338,6 +337,7 @@ class Main_gui_image_search:
         layout_clip_tools = [
             [sg.Frame("",[[sg.T("shift + ` или shift + ё, останавливает обучение")]])],
             [sg.Push(),sg.B(key="-BTN_CLIP_TRAIN-", button_text="Начать обучать модель"),sg.Push()],
+            [sg.Checkbox(key="-CHBX_CHECK_MODEL-", text="Проверить перед обучением, модель", default=True)],
             [sg.Checkbox(key="-CHBX_REPLACE_MODEL-", text="При начале обучении, обучается новая модель")]
         ]
         return sg.Frame("", layout_clip_tools)
@@ -347,14 +347,6 @@ class Main_gui_image_search:
             [sg.Checkbox(key="-CHBX_CLEANUP_FIND_RES-", text="Автоматически удалять найденные изображения из папки images_find")]
         ]
         return sg.Frame("",layout_cleanup_images_find)
-
-
-
-
-
-
-
-
 
 
      # This function reads the events from the elements and returns the data
@@ -576,12 +568,18 @@ class Main_gui_image_search:
             if self.__gen_clip.pickle_file != None:
                 print(f"Обработанно изображений: {len(self.__gen_clip.pickle_file)}")
 
+            self.__check_image_paths = filter_bool(self._window['-CHBX_CHECK_MODEL-'].get())
+
+
             # Создаём векторные представления изображений
             print("Создаём векторные представления изображений")
             await asyncio.sleep(0)
             self._window.start_thread(
                 lambda: self.__gen_clip.create_clip_image_features(
-                    self.__gen_clip.pickle_file, self.__gen_clip.image_list,self.__save_every_n
+                    self.__gen_clip.pickle_file,
+                    self.__gen_clip.image_list,
+                    self.__save_every_n,
+                    self.__check_image_paths
                 )
             )
             # self.__gen_clip.create_clip_image_features(self.__gen_clip.pickle_file, self.__gen_clip.image_list,self.__save_every_n)

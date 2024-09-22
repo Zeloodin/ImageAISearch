@@ -1,3 +1,4 @@
+chcp 65001
 venv\Scripts\python.exe -m pip install --upgrade pip
 echo https://pytorch.org/
 venv\Scripts\pip install -r requirements.txt

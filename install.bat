@@ -1,23 +1,34 @@
+chcp 65001
 @echo off
 
 cd /D "%~dp0"
 
 set PATH=%PATH%;%SystemRoot%\system32
 
-echo "%CD%"| findstr /C:" " >nul && echo Этот скрипт использует Miniconda, которую нельзя установить в фоновом режиме, указав путь с пробелами. && goto end
+echo "%CD%"| findstr /C:" " >nul && echo Р­С‚РѕС‚ СЃРєСЂРёРїС‚ РёСЃРїРѕР»СЊР·СѓРµС‚ Miniconda, РєРѕС‚РѕСЂСѓСЋ РЅРµР»СЊР·СЏ СѓСЃС‚Р°РЅРѕРІРёС‚СЊ РІ С„РѕРЅРѕРІРѕРј СЂРµР¶РёРјРµ, СѓРєР°Р·Р°РІ РїСѓС‚СЊ СЃ РїСЂРѕР±РµР»Р°РјРё. && goto end
 
-@rem Проверьте наличие специальных символов в пути установки.
-set "SPCHARMESSAGE="ВНИМАНИЕ: В пути установки обнаружены специальные символы!" "         Это может привести к сбою установки!""
+@rem РџСЂРѕРІРµСЂСЊС‚Рµ РЅР°Р»РёС‡РёРµ СЃРїРµС†РёР°Р»СЊРЅС‹С… СЃРёРјРІРѕР»РѕРІ РІ РїСѓС‚Рё СѓСЃС‚Р°РЅРѕРІРєРё.
+set "SPCHARMESSAGE="Р’РќРРњРђРќРР•: Р’ РїСѓС‚Рё СѓСЃС‚Р°РЅРѕРІРєРё РѕР±РЅР°СЂСѓР¶РµРЅС‹ СЃРїРµС†РёР°Р»СЊРЅС‹Рµ СЃРёРјРІРѕР»С‹!" "         Р­С‚Рѕ РјРѕР¶РµС‚ РїСЂРёРІРµСЃС‚Рё Рє СЃР±РѕСЋ СѓСЃС‚Р°РЅРѕРІРєРё!""
 echo "%CD%"| findstr /R /C:"[!#\$%&()\*+,;<=>?@\[\]\^`{|}~]" >nul && (
 	call :PrintBigMessage %SPCHARMESSAGE%
 )
 set SPCHARMESSAGE=
 
-@rem исправить ошибку установки при установке на отдельный диск
+echo Р­С‚Рё СЃРёРјРІРѕР»С‹, РЅРµ РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РІ РїСѓС‚Рё СѓСЃС‚Р°РЅРѕРІРєРё.
+echo ^! ^# ^$ ^% ^& ^( ^) ^* ^+ ^, ^; ^< ^= ^> ^? ^@ ^[ ^] ^^ ^` ^{ ^| ^} ^~
+echo ^|
+echo Р РєРёСЂРёР»Р»РёС†Сѓ
+echo Р° Р± РІ Рі Рґ Рµ С‘ Р¶ Р· Рё Р№ Рє Р» Рј РЅ Рѕ Рї СЂ СЃ С‚ Сѓ С„ С… С† С‡ С€ С‰ СЉ С‹ СЊ СЌ СЋ СЏ
+echo ^|
+echo РџРѕР¶Р°Р»СѓР№СЃС‚Р°, РїСЂРѕР±РµР»С‹ Р·Р°РјРµРЅРёС‚Рµ РЅР° СЃРёРјРІРѕР»С‹ ^_ ^-
+echo РЎРїР°СЃРёР±Рѕ.
+echo ^|
+
+@rem РёСЃРїСЂР°РІРёС‚СЊ РѕС€РёР±РєСѓ СѓСЃС‚Р°РЅРѕРІРєРё РїСЂРё СѓСЃС‚Р°РЅРѕРІРєРµ РЅР° РѕС‚РґРµР»СЊРЅС‹Р№ РґРёСЃРє
 set TMP=%cd%\installer_files
 set TEMP=%cd%\installer_files
 
-@rem деактивируйте существующие среды conda по мере необходимости, чтобы избежать конфликтов
+@rem РґРµР°РєС‚РёРІРёСЂСѓР№С‚Рµ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ СЃСЂРµРґС‹ conda РїРѕ РјРµСЂРµ РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё, С‡С‚РѕР±С‹ РёР·Р±РµР¶Р°С‚СЊ РєРѕРЅС„Р»РёРєС‚РѕРІ
 (call conda deactivate && call conda deactivate && call conda deactivate) 2>nul
 
 @rem config
@@ -27,51 +38,49 @@ set INSTALL_ENV_DIR=%cd%\installer_files\env
 set MINICONDA_DOWNLOAD_URL=https://repo.anaconda.com/miniconda/Miniconda3-py310_23.3.1-0-Windows-x86_64.exe
 set conda_exists=F
 
-@rem выяснить, нужно ли устанавливать git и conda
+@rem РІС‹СЏСЃРЅРёС‚СЊ, РЅСѓР¶РЅРѕ Р»Рё СѓСЃС‚Р°РЅР°РІР»РёРІР°С‚СЊ git Рё conda
 call "%CONDA_ROOT_PREFIX%\_conda.exe" --version >nul 2>&1
 if "%ERRORLEVEL%" EQU "0" set conda_exists=T
 
-@rem (при необходимости) установите git и conda в изолированную среду
-@rem скачать конда
+@rem (РїСЂРё РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё) СѓСЃС‚Р°РЅРѕРІРёС‚Рµ git Рё conda РІ РёР·РѕР»РёСЂРѕРІР°РЅРЅСѓСЋ СЃСЂРµРґСѓ
+@rem СЃРєР°С‡Р°С‚СЊ РєРѕРЅРґР°
 if "%conda_exists%" == "F" (
 	echo Downloading Miniconda from %MINICONDA_DOWNLOAD_URL% to %INSTALL_DIR%\miniconda_installer.exe
 
 	mkdir "%INSTALL_DIR%"
-	call curl -Lk "%MINICONDA_DOWNLOAD_URL%" > "%INSTALL_DIR%\miniconda_installer.exe" || ( echo. && echo Не удалось загрузить Miniconda. && goto end )
+	call curl -Lk "%MINICONDA_DOWNLOAD_URL%" > "%INSTALL_DIR%\miniconda_installer.exe" || ( echo. && echo РќРµ СѓРґР°Р»РѕСЃСЊ Р·Р°РіСЂСѓР·РёС‚СЊ Miniconda. && goto end )
 
-	echo Установка Миниконды to %CONDA_ROOT_PREFIX%
+	echo РЈСЃС‚Р°РЅРѕРІРєР° РњРёРЅРёРєРѕРЅРґС‹ to %CONDA_ROOT_PREFIX%
 	start /wait "" "%INSTALL_DIR%\miniconda_installer.exe" /InstallationType=JustMe /NoShortcuts=1 /AddToPath=0 /RegisterPython=0 /NoRegistry=1 /S /D=%CONDA_ROOT_PREFIX%
 
-	@rem протестировать двоичный файл conda
+	@rem РїСЂРѕС‚РµСЃС‚РёСЂРѕРІР°С‚СЊ РґРІРѕРёС‡РЅС‹Р№ С„Р°Р№Р» conda
 	echo Miniconda version:
-	call "%CONDA_ROOT_PREFIX%\_conda.exe" --version || ( echo. && echo Miniconda not found. && goto end )
+	call "%CONDA_ROOT_PREFIX%\_conda.exe" --version || ( echo. && echo РњРёРЅРёРєРѕРЅРґР° РЅРµ РЅР°Р№РґРµРЅР°. && goto end )
 )
 
-@rem создать среду установщика
+@rem СЃРѕР·РґР°С‚СЊ СЃСЂРµРґСѓ СѓСЃС‚Р°РЅРѕРІС‰РёРєР°
 if not exist "%INSTALL_ENV_DIR%" (
 	echo Packages to install: %PACKAGES_TO_INSTALL%
-	call "%CONDA_ROOT_PREFIX%\_conda.exe" create --no-shortcuts -y -k --prefix "%INSTALL_ENV_DIR%" python=3.11 || ( echo. && echo Не удалось создать среду Conda. && goto end )
+	call "%CONDA_ROOT_PREFIX%\_conda.exe" create --no-shortcuts -y -k --prefix "%INSTALL_ENV_DIR%" python=3.11 || ( echo. && echo РќРµ СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ СЃСЂРµРґСѓ Conda. && goto end )
 )
 
-@rem проверьте, действительно ли была создана среда conda
-if not exist "%INSTALL_ENV_DIR%\python.exe" ( echo. && echo Среда Conda пуста. && goto end )
+@rem РїСЂРѕРІРµСЂСЊС‚Рµ, РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ Р»Рё Р±С‹Р»Р° СЃРѕР·РґР°РЅР° СЃСЂРµРґР° conda
+if not exist "%INSTALL_ENV_DIR%\python.exe" ( echo. && echo РЎСЂРµРґР° Conda РїСѓСЃС‚Р°. && goto end )
 
-@rem изоляция окружающей среды
+@rem РёР·РѕР»СЏС†РёСЏ РѕРєСЂСѓР¶Р°СЋС‰РµР№ СЃСЂРµРґС‹
 set PYTHONNOUSERSITE=1
 set PYTHONPATH=
 set PYTHONHOME=
 set "CUDA_PATH=%INSTALL_ENV_DIR%"
 set "CUDA_HOME=%CUDA_PATH%"
 
-set CMD_FLAGS = "--chat --extensions Playground webui_tavernai_charas"
+@rem Р°РєС‚РёРІРёСЂРѕРІР°С‚СЊ СѓСЃС‚Р°РЅРѕРІС‰РёРє env
+call "%CONDA_ROOT_PREFIX%\condabin\conda.bat" activate "%INSTALL_ENV_DIR%" || ( echo. && echo РљСЂСЋС‡РѕРє Miniconda РЅРµ РЅР°Р№РґРµРЅ. && goto end )
 
-@rem активировать установщик env
-call "%CONDA_ROOT_PREFIX%\condabin\conda.bat" activate "%INSTALL_ENV_DIR%" || ( echo. && echo Крючок Miniconda не найден. && goto end )
-
-@rem установка установщика env
+@rem СѓСЃС‚Р°РЅРѕРІРєР° СѓСЃС‚Р°РЅРѕРІС‰РёРєР° env
 call python one_click.py %*
 
-@rem ниже приведены функции для скрипта, следующая строка пропускает их во время обычного выполнения
+@rem РЅРёР¶Рµ РїСЂРёРІРµРґРµРЅС‹ С„СѓРЅРєС†РёРё РґР»СЏ СЃРєСЂРёРїС‚Р°, СЃР»РµРґСѓСЋС‰Р°СЏ СЃС‚СЂРѕРєР° РїСЂРѕРїСѓСЃРєР°РµС‚ РёС… РІРѕ РІСЂРµРјСЏ РѕР±С‹С‡РЅРѕРіРѕ РІС‹РїРѕР»РЅРµРЅРёСЏ
 goto end
 
 :PrintBigMessage

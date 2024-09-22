@@ -5,6 +5,8 @@ handle msg between js and python side
 import os
 import pathlib
 from os import path
+from os.path import isfile
+from string import ascii_letters
 from types import NoneType
 from typing import List, Optional, Union
 
@@ -27,7 +29,7 @@ import asyncio # Во время выполнения, асинхронно вы
 from core.tools.list_tools import mini_translator
 from core.tools.json_tools import load_json_file, save_json_file
 from core.tools.bool_tools import filter_bool
-from core.tools.folder_tools import Folder_make_list, isdir_makefolder, filter_str_list
+from core.tools.folder_tools import Folder_make_list, isdir_makefolder, filter_str_list, search_in_list
 from core.core_clip.load_clip import load_pkl
 from core.core_clip.save_clip import save_pkl
 
@@ -135,6 +137,18 @@ class Generate_clip_features:
 
         # Получение значений из экземпляра класса Folder_make_list
         self.__fomali_get_values()
+
+        # ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
+        # WARNING!!! Эти переменные нужны, для стабильности работы кода! Никогда не трогайте их! Сломаете стабильность кода.
+        # Без этого списка, ищет все папки, абсолютно все папки.
+        # Ни в коем случае, не ТРОГАЙТЕ эти переменные __ascii_upper, __RECYCLEBIN, __WINDOWS, __BLACK_NEGATIVE_LIST!!!
+        # ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
+        self.__ascii_upper = list(dict.fromkeys(ascii_letters.upper()))
+        self.__RECYCLEBIN = [letter + ":\\$RECYCLE.BIN" for letter in self.__ascii_upper]
+        self.__WINDOWS = [letter + ":\\Windows" for letter in self.__ascii_upper]
+        self.__BLACK_NEGATIVE_LIST = self.__RECYCLEBIN + self.__WINDOWS
+        # ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! ! !
+
 
     async def __exit_return_break(self,key): # __on_callback
         self.__ex_return = True
@@ -397,15 +411,36 @@ class Generate_clip_features:
     def create_clip_image_features(self,
                                    all_image_features = None,
                                    image_filenames: list = None,
-                                   save_every_n:int = 100):
+                                   save_every_n: int = 100,
+                                   check_image_paths: bool = True):
         # Отключает ex_return, переключает в исходное положение.
         self.__ex_return = False
+
+
+        if not isinstance(all_image_features, NoneType) and check_image_paths:
+
+            # Проверяем на существование путей изображений
+            print("Проверяем на существование путей изображений")
+            print(f"Колличество изображения до проверки: {len(all_image_features)}")
+            for img in all_image_features:
+                if not isfile(img.get("image_id")):
+                    all_image_features.remove(img.get("image_id"))
+                    print(f"Удаляется, так как он, не существует: {img.get('image_id')}")
+                else:
+                    try:
+                        image = Image.open(img.get("image_id"))
+                    except TypeError as e:
+                        all_image_features.remove(img.get("image_id"))
+                        print(e)
+                        print(f"Удаляется, так как он, не является изображением: {img.get('image_id')}")
+
+            print(f"Колличество изображения, после проверки: {len(all_image_features)}")
 
         if not isinstance(save_every_n,NoneType):
             self.__save_every_n = save_every_n
 
-        # Загрузка всех изображений из файла или списка
-        print("Загрузка всех изображений из файла или списка")
+        # Загружаем все изображения из файла или из списка
+        print("Загружаем все изображения из файла или из списка")
         try:
             self.__all_image_features = load_pkl(self.__filename_pkl, self.__temp_pkl)
         except Exception as e:
@@ -881,9 +916,11 @@ class Generate_clip_features:
 
                 # Проходимся по списку индексов ближайших соседей
                 for i, x in enumerate(self.__indices[0]):
-
                     if self.__ex_return:  # Остановка цикла, если ex_return == True
                         break
+
+                    if search_in_list(self.__file_names[x],self.__BLACK_NEGATIVE_LIST):
+                        continue
 
                 # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
                 # try:
