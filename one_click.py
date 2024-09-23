@@ -452,7 +452,12 @@ def update_requirements(initial_installation=False):
     run_cmd("python -m pip install -r temp_requirements.txt --upgrade", assert_success=True, environment=True)
     os.remove('temp_requirements.txt')
 
-    run_cmd(f"install_requirements_conda.bat")
+    # Установка требований, CLIP, ftfy regex tqdm
+    run_cmd(f"@rem Установка требований, CLIP, ftfy regex tqdm")
+    run_cmd(f"installer_files\env\python.exe -m pip install --upgrade pip")
+    run_cmd(f"installer_files\env\Scripts\pip install -r requirements.txt")
+    run_cmd(f"installer_files\env\Scripts\pip install ftfy regex tqdm")
+    run_cmd(f"installer_files\env\Scripts\pip install git+https://github.com/openai/CLIP.git")
 
     # Проверьте наличие '+cu' или '+rocm' в строке версии, чтобы определить, использует ли torch CUDA или ROCm. Проверьте также наличие pytorch-cuda для обратной совместимости
     if not any((is_cuda, is_rocm)) and run_cmd("conda list -f pytorch-cuda | grep pytorch-cuda", environment=True, capture_output=True).returncode == 1:
