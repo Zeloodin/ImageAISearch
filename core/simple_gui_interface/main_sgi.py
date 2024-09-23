@@ -6,6 +6,7 @@ import torch
 from clip import clip
 import re
 import asyncio
+from types import NoneType
 
 # Не получается ассихронизировать
 # Во время выполнения, где собираются, обрабатываются данные,
@@ -74,13 +75,13 @@ class Main_gui_image_search:
             finalize=True,
             margins=(10, 10),
             font=(None,12),
-            size=(1250, 800))
+            size=(1250, 700))
 
         # Раньше это работало отлично.
         # Сейчас, это перестало работать
         # При других символах, будет вызываться ошибка.
         # Надо в таких случаях, или выдавать ошибку в консоль, или заменять всё на ничего, кроме чисел.
-        # И да, Сохранять каждые 0 шагов, вызовет ошибку. Это надо запомнить.
+        # Внимание, Сохранять каждые 0 шагов, вызовет ошибку. Это надо запомнить.
         self._vcmd = (self._window.TKroot.register(self.__validate_integer), '%P')
         self._window['-RESULT_QUANTITY_IMAGES_OUT-'].widget.configure(validate='all', validatecommand=self._vcmd)
         self._vcmd2 = (self._window.TKroot.register(self.__validate_integer), '%P')
@@ -95,7 +96,7 @@ class Main_gui_image_search:
                 save_json_file(self.__gen_clip.image_list, self.__IN_JSON_PATH)
 
         if self.__gen_clip.pickle_file:
-            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанных изображений: {len(self.__gen_clip.pickle_file)}")
+            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанно изображений: {len(self.__gen_clip.pickle_file)}")
 
         self._window['-CHBX_CHECK_MODEL-'].set_focus()
         self._window['-CHBX_REPLACE_MODEL-'].set_focus()
@@ -195,14 +196,14 @@ class Main_gui_image_search:
             [sg.T("Введите текст, или путь к изображению, в каталоге файлов")],
             [sg.I(key="-IN_TEXT_PATH-", right_click_menu=self.__right_click_menu, font=(None,18), size=700)],
             [sg.Push(), sg.Frame("Текст",
-                      [[sg.B(key="-BTN_SEARCH_TEXT-", button_text="Поиск по тексту")]]),
+                      [[sg.B(key="-BTN_SEARCH_TEXT-", button_text="Поиск по описанию")]]),
 
             sg.Frame("Изображение",
-                     [[sg.B(key="-BTN_SEARCH_PATH-", button_text="Поиск по изображению"),
+                     [[sg.B(key="-BTN_SEARCH_PATH-", button_text="Поиск по картинке"),
 
                      sg.I(key="-FIBR_SEARCH_PATH-", visible=False, size=(0, 0), disabled=True, enable_events=True),
                      sg.FileBrowse(#key="-FIBR_SEARCH_PATH-",
-                                      button_text="Найти в каталоге файлов",
+                                      button_text="Выбрать картинку",
                                       # enable_events=True,
                                       file_types=IMG_FILE_TYPES
                                    )]]), sg.Push()],
@@ -371,8 +372,10 @@ class Main_gui_image_search:
         # if self._element is None:
         #     continue  # Просто пропускаем итерацию, если элемента с фокусом нет
 
-        self._widget = self._window.find_element_with_focus().widget
-
+        if not isinstance(self._window.find_element_with_focus().widget, NoneType):
+            self._widget = self._window.find_element_with_focus().widget
+        else:
+            print("отсутствует widget")
 
 
         if event == 'Выделить всё':
@@ -478,6 +481,9 @@ class Main_gui_image_search:
             self._window["-MULTI_BLACK_PATH_LIST-"].update(result)
 
 
+        elif event == "-UPDATE_SHOW_IMAGE_LIST_JSON-":
+            self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
+            print(f'{self._window["-TEXT_COUNT_IMAGES-"].get()}')
 
         elif event == "-BTN_FOLDER_MAKE_LIST-":
             print("Собираем Изображения")
@@ -511,7 +517,8 @@ class Main_gui_image_search:
                     window_PySimpleGUI=self._window,
                     get_widget_PySimpleGUI="-TEXT_COUNT_IMAGES-",
                     update_PySimpleGUI=f"Всего изображений: {len(self.__gen_clip.get_image_list())}"
-                )
+                ),
+                "-UPDATE_SHOW_IMAGE_LIST_JSON-"
             )
 
             BOOL_CHBX_SAVE_IMAGE_LIST = filter_bool(self._window['-CHBX_SAVE_IMAGE_LIST-'].get())
@@ -588,9 +595,14 @@ class Main_gui_image_search:
 
 
         elif event == "-BTN_SEARCH_TEXT-":
-            if len(load_pkl(self.__IN_PKL_PATH)) == 0:
-                print("Пожалуйста, обучите модель, а затем ищите по тексту, или изображению")
-                return None
+            if not isinstance(self.__gen_clip.pickle_file, NoneType):
+                if len(self.__gen_clip.pickle_file) == 0:
+                    print("Пожалуйста, обучите модель, а затем ищите по тексту")
+                    return None
+            elif not os.path.isfile(self.__IN_PKL_PATH):
+                if len(load_pkl(self.__IN_PKL_PATH)) == 0:
+                    print("Пожалуйста, обучите модель, а затем ищите по тексту")
+                    return None
 
             if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
                 self.__cleanup_temp()
@@ -603,13 +615,19 @@ class Main_gui_image_search:
                                           query_str_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
                                           is_str=True,
                                           image_filenames=self.__gen_clip.image_list,
+                                          image_features=self.__gen_clip.pickle_file,
                                           path_clip_image=self.__IN_PKL_PATH,
                                           file_names_path=self.__IN_JSON_PATH)
 
         elif event == "-BTN_SEARCH_PATH-":
-            if len(load_pkl(self.__IN_PKL_PATH)) == 0:
-                print("Пожалуйста, обучите модель, а затем ищите по тексту, или изображению")
-                return None
+            if not isinstance(self.__gen_clip.pickle_file, NoneType):
+                if len(self.__gen_clip.pickle_file) == 0:
+                    print("Пожалуйста, обучите модель, а затем ищите по изображению")
+                    return None
+            elif not os.path.isfile(self.__IN_PKL_PATH):
+                if len(load_pkl(self.__IN_PKL_PATH)) == 0:
+                    print("Пожалуйста, обучите модель, а затем ищите по изображению")
+                    return None
 
             if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
                 self.__cleanup_temp()
@@ -618,6 +636,7 @@ class Main_gui_image_search:
                                           query_image_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
                                           is_str=False,
                                           image_filenames=self.__gen_clip.image_list,
+                                          image_features=self.__gen_clip.pickle_file,
                                           path_clip_image=self.__IN_PKL_PATH,
                                           file_names_path=self.__IN_JSON_PATH)
 

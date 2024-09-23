@@ -512,7 +512,12 @@ class Generate_clip_features:
                 self.__all_image_features = all_image_features
                 print(len(self.__all_image_features))
         # Сохраняем окончательные результаты
-        save_pkl(all_image_features, PKL_FILE_PATH)
+        if len(all_image_features) == 0:
+            print(f"Колличество изображений: {len(all_image_features)}")
+            print("Пожалуйста, соберите список изображения")
+            return None
+        else:
+            save_pkl(all_image_features, PKL_FILE_PATH)
         # Сохраняем список изображений в self.__all_image_features
         self.__all_image_features = all_image_features
 
@@ -708,7 +713,11 @@ class Generate_clip_features:
 
         # Сохранение в NumPy массив
         # array - создает NumPy массив
-        self.__features = np.array(self.__features)
+        try:
+            self.__features = np.array(self.__features)
+        except ValueError as e:
+            print(f"Ошибка: {e}")
+            return None
         # self.__features = np.asarray(self.__features, dtype="object") #NOT FIX
         # squeeze - удаляет измерение из массива
         self.__features = np.squeeze(self.__features)
