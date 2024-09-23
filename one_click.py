@@ -21,15 +21,7 @@ conda_env_path = os.path.join(script_dir, "installer_files", "env")
 # os.environ["HSA_OVERRIDE_GFX_VERSION"] = '10.3.0'
 # os.environ["HCC_AMDGPU_TARGET"] = 'gfx1030'
 
-# Command-line flags
-cmd_flags_path = os.path.join(script_dir, "CMD_FLAGS.txt")
-if os.path.exists(cmd_flags_path):
-    with open(cmd_flags_path, 'r') as f:
-        CMD_FLAGS = ' '.join(line.strip().rstrip('\\').strip() for line in f if line.strip().rstrip('\\').strip() and not line.strip().startswith('#'))
-else:
-    CMD_FLAGS = ''
-
-flags = f"{' '.join([flag for flag in sys.argv[1:] if flag != '--update'])} {CMD_FLAGS}"
+flags = f"{' '.join([flag for flag in sys.argv[1:] if flag != '--update'])}"
 
 
 def signal_handler(sig, frame):
@@ -292,7 +284,6 @@ def install_ImageAISearch():
     Если пользователь выбирает NVIDIA, спросите, хочет ли он использовать CUDA 11.8 вместо 12.1.
     # Если пользователь выбирает AMD, проверьте, установлен ли ROCm SDK, и запросите подтверждение.
     # Если пользователь выбирает Intel Arc (IPEX), установите необходимые библиотеки времени выполнения Intel oneAPI.
-    Если пользователь выбирает None (режим центрального процессора), добавьте флаг --cpu в CMD_FLAGS.txt.
 
     Установите зависимости PyTorch и PyTorch в зависимости от выбора графического процессора пользователем.
     Если пользователь выбирает NVIDIA, установите библиотеки времени выполнения CUDA.
@@ -328,12 +319,6 @@ def install_ImageAISearch():
     }
 
     selected_gpu = gpu_choice_to_name[choice]
-
-    if selected_gpu == "NONE":
-        with open(cmd_flags_path, 'r+') as cmd_flags_file:
-            if "--cpu" not in cmd_flags_file.read():
-                print_big_message("Добавление флага --cpu в CMD_FLAGS.txt.")
-                cmd_flags_file.write("\n--cpu")
 
     # Find the proper Pytorch installation command
     install_git = "conda install -y -k ninja git"
