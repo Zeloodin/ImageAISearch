@@ -5,14 +5,11 @@ import PySimpleGUI as sg
 import torch
 from clip import clip
 import re
-import asyncio
 from types import NoneType
+from time import sleep
 
-# Не получается ассихронизировать
-# Во время выполнения, где собираются, обрабатываются данные,
-# Программа застывает. И после выполнения, програма возобновляется снова.
-# Чтобы программа работала ассихронно, нужно изучать как работает эта ассихроннизация.
-# import asyncio
+from keyboard import add_hotkey # В случае, когда надо отключить
+import asyncio # Во время выполнения, асинхронно выполняет, рядом с другими задачами
 
 from core.core_clip.init_clip import Generate_clip_features
 from core.tools import isfloat, isdir_makefolder
@@ -48,6 +45,16 @@ class Main_gui_image_search:
 
         self.__gen_clip = Generate_clip_features()
 
+        self.__tabs_mode = "tab_text"
+
+        # Код прерывает цикл, в _from_folder И _for_folder И negative_filter
+        try:
+            # Если Английская расскладка, то код будет выполниться правильно.
+            add_hotkey("ctrl + q", lambda: asyncio.run(self.__exit_return_break("ctrl + q")))
+        except ValueError:
+            # Если Русская расскладка, то код будет выполниться, после try except ValueError.
+            add_hotkey("ctrl + й", lambda: asyncio.run(self.__exit_return_break("ctrl + й")))
+        # На других расскладках не проверялись.
 
 
         try:
@@ -62,20 +69,31 @@ class Main_gui_image_search:
             pass
             # self.__gen_clip.pickle_file = {}
 
-        self._layout_main = [
-            [[sg.Push(), self._build_json_frame(),
-             self._build_pickle_frame()],
-             sg.Frame("",[[self._build_basic_launch_parameters_frame()],
-                        [sg.Push(), self._build_search_frame()]]),
-             self._build_folder_multiline_list_frame()]]
 
+
+        self._layout_main = [
+            [[sg.Push()],
+             sg.Frame("",[[sg.Push(), self._build_search_frame()],
+                         [sg.Push(), self._build_make_folder_list_frame()]]),
+             self._build_folder_multiline_list_frame()],
+            [sg.T("В случае если хотите остановить сканирование, поиск\nудерживайте клавиши Ctrl + Q, для остановки")]]
         self._window = sg.Window(
             title="ImageAISearch",
             layout=self._layout_main,
             finalize=True,
             margins=(10, 10),
-            font=(None,12),
-            size=(1250, 700))
+            font=(None,12))
+
+        # self._window["-TEXT_COUNT_IMAGES-"].set_focus()
+        # self._window["-BTN_FOLDER_MAKE_LIST-"].set_focus()
+        # self._window["-BTN_POSITIVE_PATH_LIST-"].set_focus()
+        # self._window["-BTN_NEGATIVE_PATH_LIST-"].set_focus()
+        # self._window["-RESULT_SHOW_IMAGES-"].set_focus()
+        # self._window["-RESULT_QUANTITY_IMAGES_OUT-"].set_focus()
+        # self._window["-FIBR_SEARCH_PATH-"].set_focus()
+        # self._window["-BTN_SEARCH_PATH-"].set_focus()
+        # self._window["-BTN_SEARCH_TEXT-"].set_focus()
+        # self._window["-TEXT_RESULT_COUNT_IMAGES-"].set_focus()
 
         # Раньше это работало отлично.
         # Сейчас, это перестало работать
@@ -84,8 +102,7 @@ class Main_gui_image_search:
         # Внимание, Сохранять каждые 0 шагов, вызовет ошибку. Это надо запомнить.
         self._vcmd = (self._window.TKroot.register(self.__validate_integer), '%P')
         self._window['-RESULT_QUANTITY_IMAGES_OUT-'].widget.configure(validate='all', validatecommand=self._vcmd)
-        self._vcmd2 = (self._window.TKroot.register(self.__validate_integer), '%P')
-        self._window['-SAVE_EVERY_N_JSON-'].widget.configure(validate='all', validatecommand=self._vcmd2)
+
 
         if self.__gen_clip.image_list:
             self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
@@ -98,73 +115,6 @@ class Main_gui_image_search:
         if self.__gen_clip.pickle_file:
             self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанно изображений: {len(self.__gen_clip.pickle_file)}")
 
-        self._window['-CHBX_CHECK_MODEL-'].set_focus()
-        self._window['-CHBX_REPLACE_MODEL-'].set_focus()
-        self._window['-BTN_CLIP_TRAIN-'].set_focus()
-        self._window['-CHBX_FILTER_WORK_LIST-'].set_focus()
-        self._window['-CHBX_APPEND_WHITE_LIST-'].set_focus()
-        self._window['-TEXT_COUNT_IMAGES-'].set_focus()
-        self._window['-TEXT_RESULT_COUNT_IMAGES-'].set_focus()
-        self._window['-CHBX_SAVE_IMAGE_LIST-'].set_focus()
-        self._window['-BTN_FOLDER_MAKE_LIST-'].set_focus()
-        self._window['-BTN_POSITIVE_PATH_LIST-'].set_focus()
-        self._window['-BTN_NEGATIVE_PATH_LIST-'].set_focus()
-        self._window['-MULTI_POSITIVE_PATH_LIST-'].set_focus()
-        self._window['-IN_TEXT_PATH-'].set_focus()
-        self._window['-BTN_SEARCH_TEXT-'].set_focus()
-        self._window['-BTN_SEARCH_PATH-'].set_focus()
-        self._window['-FIBR_SEARCH_PATH-'].set_focus()
-        self._window['-CHBX_CLEANUP_FIND_RES-'].set_focus()
-
-        # # --------------------------------------------------------------
-        # # добавляет к объектам фокус, чтобы не было проблем с действующими объектами.
-        # # без .set_focus(), не корректно работает. Лучше их не трогать.
-        # # --------------------------------------------------------------
-        # # _build_search_frame
-        self._window['-IN_TEXT_PATH-'].set_focus()
-        self._window['-BTN_SEARCH_TEXT-'].set_focus()
-        self._window['-BTN_SEARCH_PATH-'].set_focus()
-        self._window['-FIBR_SEARCH_PATH-'].set_focus()
-        # # --------------------------------------------------------------
-        # # _build_json_frame
-        # self._window['-IN_JSON_PATH-'].set_focus()
-        # self._window['-BTN_JSON_SAVE_PATH-'].set_focus()
-        # self._window['-FIBR_JSON_SAVE_PATH-'].set_focus()
-        # self._window['-BTN_JSON_LOAD_PATH-'].set_focus()
-        # self._window['-FIBR_JSON_LOAD_PATH-'].set_focus()
-        # # --------------------------------------------------------------
-        # # _build_pickle_frame
-        # self._window['-IN_PKL_PATH-'].set_focus()
-        # self._window['-BTN_PKL_SAVE_PATH-'].set_focus()
-        # self._window['-FIBR_PKL_SAVE_PATH-'].set_focus()
-        # self._window['-BTN_PKL_LOAD_PATH-'].set_focus()
-        # self._window['-FIBR_PKL_LOAD_PATH-'].set_focus()
-        # # --------------------------------------------------------------
-        # # _build_folder_multiline_list_frame
-        # self._window['-MULTI_POSITIVE_PATH_LIST-'].set_focus()
-        # self._window['-MULTI_NEGATIVE_PATH_LIST-'].set_focus()
-        # self._window['-MULTI_WHITE_PATH_LIST-'].set_focus()
-        # self._window['-MULTI_BLACK_PATH_LIST-'].set_focus()
-        #
-        # self._window['-BTN_POSITIVE_PATH_LIST-'].set_focus()
-        # self._window['-BTN_NEGATIVE_PATH_LIST-'].set_focus()
-        # self._window['-BTN_WHITE_PATH_LIST-'].set_focus()
-        # self._window['-BTN_BLACK_PATH_LIST-'].set_focus()
-        # # --------------------------------------------------------------
-        # # _build_make_folder_list_frame
-        self._window['-BTN_FOLDER_MAKE_LIST-'].set_focus()
-        self._window['-CHBX_SAVE_IMAGE_LIST-'].set_focus()
-        self._window['-CHBX_APPEND_WHITE_LIST-'].set_focus()
-        self._window['-CHBX_FILTER_WORK_LIST-'].set_focus()
-        # # --------------------------------------------------------------
-        # # _build_clip_tools_frame
-        self._window['-CHBX_REPLACE_MODEL-'].set_focus()
-        self._window['-RESULT_QUANTITY_IMAGES_OUT-'].set_focus()
-        self._window['-RESULT_SHOW_IMAGES-'].set_focus()
-        # # --------------------------------------------------------------
-
-
-
         print("run started")
         # Определяем устройство для выполнения операций
         self.__device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -172,99 +122,58 @@ class Main_gui_image_search:
         # Выводим информацию о выбранном устройстве
         print("device:", self.__device)
 
-        self.__replace_model = filter_bool(self._window['-CHBX_REPLACE_MODEL-'].get())
-
-        # Проверяем, нужно ли заменить модель и предобработку
-        if self.__replace_model or (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
-            print("Создаём модель и препроцессор")
-            # Выводим сообщение о создании модели и препроцессоре
-            print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
-            # Загружаем модель и предобработку
-            self.__model, self.__preprocess = clip.load(CLIP_LOAD)
-
-            self.__gen_clip.preprocess = self.__preprocess
-            self.__gen_clip.model = self.__model
-
-
-
-
-
+    #
+    #         self._layout_main = [
+    #             [sg.TabGroup(
+    #                 [[sg.Tab("Tab 1", ),
+    #                   sg.Tab("Tab 2", )]])]]
 
 
     def _build_search_frame(self):
-        layout_search = [
-            [sg.T("Введите текст, или путь к изображению, в каталоге файлов")],
-            [sg.I(key="-IN_TEXT_PATH-", right_click_menu=self.__right_click_menu, font=(None,18), size=700)],
-            [sg.Push(), sg.Frame("Текст",
-                      [[sg.B(key="-BTN_SEARCH_TEXT-", button_text="Поиск по описанию")]]),
+        layout_text =  [[sg.Frame("Текст",
+                                  [[sg.T("Введите описание текста")],
+                                  [sg.I(key="-IN_TEXT-", right_click_menu=self.__right_click_menu,font=(None, 18))],
 
-            sg.Frame("Изображение",
-                     [[sg.B(key="-BTN_SEARCH_PATH-", button_text="Поиск по картинке"),
+                                  [sg.B(key="-BTN_SEARCH_TEXT-", button_text="Поиск по описанию")]]
+                                  )
+                         ]]
 
-                     sg.I(key="-FIBR_SEARCH_PATH-", visible=False, size=(0, 0), disabled=True, enable_events=True),
-                     sg.FileBrowse(#key="-FIBR_SEARCH_PATH-",
+        layout_image = [[sg.Frame("Картинки",
+                                  [[sg.T("Введите путь к картинке, или нажмите Выбрать картинку")],
+                                  [sg.I(key="-IN_TEXT_PATH-", right_click_menu=self.__right_click_menu,font=(None, 18))],
+
+                                  [sg.B(key="-BTN_SEARCH_PATH-", button_text="Поиск по картинке"),
+
+                                  sg.I(key="-FIBR_SEARCH_PATH-", visible=False, size=(0, 0), disabled=True,
+                                       enable_events=True),
+                                  sg.FileBrowse(  # key="-FIBR_SEARCH_PATH-",
                                       button_text="Выбрать картинку",
                                       # enable_events=True,
                                       file_types=IMG_FILE_TYPES
-                                   )]]), sg.Push()],
+                                  )]]
+                                  )
+                         ]]
+
+
+
+        layout_search = [
+
+            [sg.Push(),
+
+            sg.TabGroup([[sg.Tab("Текст", layout_text, key= "tab_text"),
+                          sg.Tab("Картинки", layout_image, key= "tab_image")]],
+                         enable_events=True, key= "tab_group"),
+            sg.Push()],
 
             [sg.Push(), sg.Frame("",[
             [sg.T(text="Показать"),
             sg.I(key="-RESULT_QUANTITY_IMAGES_OUT-", default_text=10, size=(10, 0)),
-             sg.T(text="найденных изображений")],
+            sg.T(text="найденных изображений")],
             [sg.B(key="-RESULT_SHOW_IMAGES-", button_text="Показать результат")]
             ]), sg.Push()],
             [self._build_cleanup_images_find_frame()]
         ]
-        return sg.Frame("Поисковой запрос", layout_search, size=(700,300))
-
-    def _build_json_frame(self):
-        layout_json = [
-            [sg.T("Сохранить список путей изображений (json)")],
-            [sg.I(key="-IN_JSON_PATH-",
-                  default_text=self.__IN_JSON_PATH,
-                  right_click_menu=self.__right_click_menu)],
-
-            [sg.Frame("Кнопки сохранения",
-            [[sg.B(key="-BTN_JSON_SAVE_PATH-", button_text="Сохранить список")],
-            [sg.FileSaveAs(key="-FIBR_JSON_SAVE_PATH-",
-                           button_text="Сохранить список как...",
-                           enable_events=True,
-                           file_types=JSON_FILE_TYPES)]]),
-
-            sg.Frame("Кнопки загрузки",
-            [[sg.B(key="-BTN_JSON_LOAD_PATH-", button_text="Загрузить список")],
-            [sg.FileBrowse(key="-FIBR_JSON_LOAD_PATH-",
-                           button_text="Загрузить список как...",
-                           enable_events=True,
-                           file_types=JSON_FILE_TYPES)]])]
-        ]
-        return sg.Frame("Загрузка и Сохранения списка изображений", layout_json, visible=False)
-
-    def _build_pickle_frame(self):
-        layout_pickle = [
-            [sg.T("Сохранить базу данных изображений (pkl)")],
-            [sg.I(key="-IN_PKL_PATH-",
-                  default_text=self.__IN_PKL_PATH,
-                  right_click_menu=self.__right_click_menu)],
-
-            [sg.Frame("Кнопки сохранения",
-            [[sg.B(key="-BTN_PKL_SAVE_PATH-", button_text="Сохранить базу данных")],
-            [sg.FileSaveAs(key="-FIBR_PKL_SAVE_PATH-",
-                           button_text="Сохранить базу данных как...",
-                           enable_events=True,
-                           file_types=PKL_FILE_TYPES)]]),
-
-            sg.Frame("Кнопки загрузки",
-            [[sg.B(key="-BTN_PKL_LOAD_PATH-", button_text="Загрузить базу данных")],
-            [sg.FileBrowse(key="-FIBR_PKL_LOAD_PATH-",
-                           button_text="Загрузить базу данных как...",
-                           enable_events=True,
-                           file_types=PKL_FILE_TYPES)]])]
-        ]
-        return sg.Frame("Загрузка и Сохранения база обработанных изображений", layout_pickle, visible=False)
-
-
+        return sg.Frame("Поисковой запрос", layout_search)
 
     def _build_folder_multiline_list_frame(self):
         layout_folder_multiline_list = [
@@ -275,17 +184,7 @@ class Main_gui_image_search:
                           size=(30, 12),
                           right_click_menu=self.__right_click_menu,
                           horizontal_scroll=True)
-            ]]),
-
-        sg.Frame("Белый список папок",[
-            [sg.B("Выбрать файлы и папки",
-                  key="-BTN_WHITE_PATH_LIST-")],
-            [sg.Multiline(key="-MULTI_WHITE_PATH_LIST-",
-                          size=(30, 12),
-                          right_click_menu=self.__right_click_menu,
-                          horizontal_scroll=True)
-            ]], visible=False)
-        ],
+            ]])],
 
         [sg.Frame("Негативный список папок",[
             [sg.B("Выбрать файлы и папки",
@@ -294,54 +193,20 @@ class Main_gui_image_search:
                           size=(30, 12),
                           right_click_menu=self.__right_click_menu,
                           horizontal_scroll=True)
-            ]]),
-
-        sg.Frame("Чёрный список папок",[
-            [sg.B("Выбрать файлы и папки",
-                  key="-BTN_BLACK_PATH_LIST-")],
-            [sg.Multiline(key="-MULTI_BLACK_PATH_LIST-",
-                          size=(30, 12),
-                          right_click_menu=self.__right_click_menu,
-                          horizontal_scroll=True)
-            ]], visible=False)
-        ]
+            ]])]
         ]
         return sg.Frame(
             "Список путей папок, для сбора изображений, \nи нахождения по ним изображения",
             layout_folder_multiline_list)
 
-
-    def _build_basic_launch_parameters_frame(self):
-        layout_basic_launch_parameters = [
-            [self._build_make_folder_list_frame(),
-            self._build_clip_tools_frame()]
-        ]
-        return sg.Frame("", layout_basic_launch_parameters, size=(830, 350))
-
     def _build_make_folder_list_frame(self):
         layout_make_folder_list = [
-                [sg.T("Запуск сбора изображений, \nи добавление в файловый список (json)")],
-                [sg.Frame("",[[sg.T("shift + ` или shift + ё, останавливает сбор")]])],
-                [sg.B(key="-BTN_FOLDER_MAKE_LIST-", button_text="Собрать все изображения")],
-                [sg.Checkbox(key="-CHBX_SAVE_IMAGE_LIST-", text="Авто Сохранение", default=True)],
-                [sg.Checkbox(key="-CHBX_APPEND_WHITE_LIST-", text='Добавление из белого списка', default=False)],
-                [sg.Checkbox(key="-CHBX_FILTER_WORK_LIST-", text='Фильтр во время сбора', default=True)],
+                [sg.T("Запуск сбора изображений, \nи добавление в файловый список")],
+                [sg.B(key="-BTN_FOLDER_MAKE_LIST-", button_text="Сканировать")],
                 [sg.T("Всего изображений: 0", key="-TEXT_COUNT_IMAGES-")],
-                [sg.T("Всего обработанных изображений: 0", key="-TEXT_RESULT_COUNT_IMAGES-")],
-                [sg.T(text="Сохранять через каждые"),
-                sg.I(key="-SAVE_EVERY_N_JSON-", default_text=100, size=(10, 0)),
-                sg.T(text="шагов")],
+                [sg.T("Всего обработанно изображений: 0", key="-TEXT_RESULT_COUNT_IMAGES-")],
             ]
-        return sg.Frame("", layout_make_folder_list, size=(400, 500))
-
-    def _build_clip_tools_frame(self):
-        layout_clip_tools = [
-            [sg.Frame("",[[sg.T("shift + ` или shift + ё, останавливает обучение")]])],
-            [sg.Push(),sg.B(key="-BTN_CLIP_TRAIN-", button_text="Начать обучать модель"),sg.Push()],
-            [sg.Checkbox(key="-CHBX_CHECK_MODEL-", text="Проверить перед обучением, модель", default=True)],
-            [sg.Checkbox(key="-CHBX_REPLACE_MODEL-", text="При начале обучении, обучается новая модель")]
-        ]
-        return sg.Frame("", layout_clip_tools)
+        return sg.Frame("", layout_make_folder_list)
 
     def _build_cleanup_images_find_frame(self):
         layout_cleanup_images_find = [
@@ -353,7 +218,14 @@ class Main_gui_image_search:
      # This function reads the events from the elements and returns the data
     def read_event(self):
         event, values = self._window.read()
-        event_id = event[0] if event is not None else None
+        # print(event)
+
+        if event is not None:
+            event_id = event[0]
+        else:
+            event_id = None
+
+
         return event_id, event, values
 
     def close(self):
@@ -372,10 +244,14 @@ class Main_gui_image_search:
         # if self._element is None:
         #     continue  # Просто пропускаем итерацию, если элемента с фокусом нет
 
-        if not isinstance(self._window.find_element_with_focus().widget, NoneType):
-            self._widget = self._window.find_element_with_focus().widget
-        else:
-            print("отсутствует widget")
+        try:
+            if not isinstance(self._window.find_element_with_focus().widget, NoneType):
+                self._widget = self._window.find_element_with_focus().widget
+            else:
+                print("отсутствует widget")
+        except Exception as e:
+            # print(e)
+            pass
 
 
         if event == 'Выделить всё':
@@ -414,43 +290,18 @@ class Main_gui_image_search:
                 # print('Nothing selected')
                 pass
 
+        elif event == "tab_group":
+            print(self._window["tab_group"].get())
+
+        elif event == "tab_text":
+            self.__tabs_mode = "tab_text"
+        elif event == "tab_image":
+            self.__tabs_mode = "tab_image"
+
+
         elif event == "-FIBR_SEARCH_PATH-":
             self._window['-IN_TEXT_PATH-'].update(value)
             print(f"Выбираем изображение для поиска: {value}")
-
-
-        elif event == "-FIBR_JSON_LOAD_PATH-":
-            await asyncio.sleep(0)
-            self._window['-IN_JSON_PATH-'].update(value)
-            self.__IN_JSON_PATH = value
-            print(f"Загружаем список путей изображений из: {value}")
-            self.__gen_clip.image_list = load_json_file(self.__IN_JSON_PATH)
-            print("Загрузка завершено")
-
-        elif event == "-FIBR_JSON_SAVE_PATH-":
-            await asyncio.sleep(0)
-            self._window['-IN_JSON_PATH-'].update(value)
-            self.__IN_JSON_PATH = value
-            print(f"Сохраняем список путей изображений в: {value}")
-            save_json_file(self.__gen_clip.image_list,self.__IN_JSON_PATH,indent=0)
-            print("Сохранение завершено")
-
-        elif event == "-FIBR_PKL_LOAD_PATH-":
-            await asyncio.sleep(0)
-            self._window['-IN_PKL_PATH-'].update(value)
-            self.__IN_PKL_PATH = value
-            print(f"Загружаем базу обработанных изображений из: {value}")
-            self.__gen_clip.pickle_file = load_pkl(self.__IN_PKL_PATH)
-            print("Загрузка завершено")
-
-        elif event == "-FIBR_PKL_SAVE_PATH-":
-            await asyncio.sleep(0)
-            self._window['-IN_PKL_PATH-'].update(value)
-            self.__IN_PKL_PATH = value
-            print(f"Сохраняем базу обработанных изображений в: {value}")
-            save_pkl(self.__gen_clip.pickle_file,self.__IN_PKL_PATH)
-            print("Сохранение завершено")
-
 
         elif event == "-BTN_POSITIVE_PATH_LIST-":
             multilist = self._window["-MULTI_POSITIVE_PATH_LIST-"].get()
@@ -474,50 +325,16 @@ class Main_gui_image_search:
             await asyncio.sleep(0)
             self._window["-MULTI_NEGATIVE_PATH_LIST-"].update(result)
 
-        elif event == "-BTN_WHITE_PATH_LIST-":
-            multilist = self._window["-MULTI_WHITE_PATH_LIST-"].get()
-            try:
-                files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
-            except TypeError:
-                print("Ошибка. Не можем добавить. Поврежден файл, или папка")
-                return None
-            result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
-            await asyncio.sleep(0)
-            self._window["-MULTI_WHITE_PATH_LIST-"].update(result)
-
-        elif event == "-BTN_BLACK_PATH_LIST-":
-            multilist = self._window["-MULTI_BLACK_PATH_LIST-"].get()
-            try:
-                files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
-            except TypeError:
-                print("Ошибка. Не можем добавить. Поврежден файл, или папка")
-                return None
-            result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
-            await asyncio.sleep(0)
-            self._window["-MULTI_BLACK_PATH_LIST-"].update(result)
-
-
         elif event == "-UPDATE_SHOW_IMAGE_LIST_JSON-":
             self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
             print(f'{self._window["-TEXT_COUNT_IMAGES-"].get()}')
 
         elif event == "-BTN_FOLDER_MAKE_LIST-":
-            print("Собираем Изображения")
 
-
+            print("Собираем, сканируем изображения")
 
             self.__new_folder_list = self._window["-MULTI_POSITIVE_PATH_LIST-"].get().split("\n")
             self.__new_neg_folder_list = self._window["-MULTI_NEGATIVE_PATH_LIST-"].get().split("\n")
-            self.__new_white_list = self._window["-MULTI_WHITE_PATH_LIST-"].get().split("\n")
-            self.__new_black_list = self._window["-MULTI_BLACK_PATH_LIST-"].get().split("\n")
-            self.__filter_work = filter_bool(self._window["-CHBX_FILTER_WORK_LIST-"].get())
-            self.__append_white = filter_bool(self._window["-CHBX_APPEND_WHITE_LIST-"].get())
-            self.__save_every_n_json = self.__widget_is_int(self._window,
-                                                            "-SAVE_EVERY_N_JSON-",
-                                                            True)
-
-
-
 
             print("Собираем")
             await asyncio.sleep(0)
@@ -525,40 +342,34 @@ class Main_gui_image_search:
                 lambda: self.__gen_clip.find_image_list(
                     self.__new_folder_list,
                     self.__new_neg_folder_list,
-                    self.__new_white_list,
-                    self.__new_black_list,
-                    self.__filter_work,
-                    self.__append_white,
-                    self.__save_every_n_json,
+                    filter_work=True,
+                    append_white=False,
+                    save_every_n=500,
                     window_PySimpleGUI=self._window,
                     get_widget_PySimpleGUI="-TEXT_COUNT_IMAGES-",
                     update_PySimpleGUI=f"Всего изображений: {len(self.__gen_clip.get_image_list())}"
-                ),
-                "-UPDATE_SHOW_IMAGE_LIST_JSON-"
+                )
+            ,"-BTN_TRAIN_MODEL-"
             )
-
-            BOOL_CHBX_SAVE_IMAGE_LIST = filter_bool(self._window['-CHBX_SAVE_IMAGE_LIST-'].get())
-            print(f"Проверяем, Авто Сохранение: {BOOL_CHBX_SAVE_IMAGE_LIST}")
-            if BOOL_CHBX_SAVE_IMAGE_LIST:
-                print(f"Проверяем на существование файла: {self.__IN_JSON_PATH}"
-                      f"\nСуществует файл: {os.path.isfile(self.__IN_JSON_PATH)}")
-                if not os.path.isfile(self.__IN_JSON_PATH):
-                    print(f"Создаём: {self.__IN_JSON_PATH}")
-                    isdir_makefolder("\\".join(self.__IN_JSON_PATH.split("\\")[:-1]))
-                print(f"Сохраняю список путей изображений в json файл: {self.__IN_JSON_PATH}")
-                print(f"Колличество изображений в списке: {len(self.__gen_clip.image_list)}")
-                save_json_file(self.__gen_clip.image_list,self.__IN_JSON_PATH, indent=0)
+            await asyncio.sleep(0)
 
             self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
             print(f'{self._window["-TEXT_COUNT_IMAGES-"].get()}')
 
+            print(f"Проверяем на существование файла: {self.__IN_JSON_PATH}"
+                  f"\nСуществует файл: {os.path.isfile(self.__IN_JSON_PATH)}")
+            if not os.path.isfile(self.__IN_JSON_PATH):
+                print(f"Создаём: {self.__IN_JSON_PATH}")
+                isdir_makefolder("\\".join(self.__IN_JSON_PATH.split("\\")[:-1]))
+            print(f"Сохраняю список путей изображений в json файл: {self.__IN_JSON_PATH}")
+            print(f"Колличество изображений в списке: {len(self.__gen_clip.image_list)}")
+            save_json_file(self.__gen_clip.image_list,self.__IN_JSON_PATH, indent=0)
 
-        elif event == "-RESULT_SHOW_IMAGES-":
-            print(f"Переходим: {PATH_SEARCH_RES}")
-            isdir_makefolder(PATH_SEARCH_RES)
-            open_folder_in_explorer(PATH_SEARCH_RES)
+            self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
+            print(f'{self._window["-TEXT_COUNT_IMAGES-"].get()}')
 
-        elif event == "-BTN_CLIP_TRAIN-":
+        elif event == "-BTN_TRAIN_MODEL-":
+
             print("Начинаем обучать модель на собранных изображений")
 
             print("run started")
@@ -568,10 +379,8 @@ class Main_gui_image_search:
             # Выводим информацию о выбранном устройстве
             print("device:", self.__device)
 
-            self.__replace_model = filter_bool(self._window['-CHBX_REPLACE_MODEL-'].get())
-
             # Проверяем, нужно ли заменить модель и предобработку
-            if self.__replace_model or (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
+            if (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
                 print("Создаём модель и препроцессор")
                 # Выводим сообщение о создании модели и препроцессоре
                 print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
@@ -581,18 +390,10 @@ class Main_gui_image_search:
                 self.__gen_clip.preprocess = self.__preprocess
                 self.__gen_clip.model = self.__model
 
-
-
-            # Устанавливаем частоту сохранения результатов
-            self.__save_every_n = 100
-
             if self.__gen_clip.get_image_list() != None:
-                print(fr"Всего изображений {len(self.__gen_clip.get_image_list())}")
+                print(fr"Всего изображений {len(self.__gen_clip.image_list)}")
             if self.__gen_clip.pickle_file != None:
                 print(f"Обработанно изображений: {len(self.__gen_clip.pickle_file)}")
-
-            self.__check_image_paths = filter_bool(self._window['-CHBX_CHECK_MODEL-'].get())
-
 
             # Создаём векторные представления изображений
             print("Создаём векторные представления изображений")
@@ -601,13 +402,40 @@ class Main_gui_image_search:
                 lambda: self.__gen_clip.create_clip_image_features(
                     self.__gen_clip.pickle_file,
                     self.__gen_clip.image_list,
-                    self.__save_every_n,
-                    self.__check_image_paths
+                    500,
+                    True
                 )
+            ,"-UPDATE_COUNTS_IMAGES-"
             )
-            # self.__gen_clip.create_clip_image_features(self.__gen_clip.pickle_file, self.__gen_clip.image_list,self.__save_every_n)
 
-            print("create_clip_image_features finished")
+            self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
+            print(f'{self._window["-TEXT_COUNT_IMAGES-"].get()}')
+            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанно изображений: {len(self.__gen_clip.pickle_file)}")
+            print(f'{self._window["-TEXT_RESULT_COUNT_IMAGES-"].get()}')
+
+            print("Сканирование завершено!")
+
+        elif event == "-UPDATE_COUNTS_IMAGES-":
+            self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
+            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанно изображений: {len(self.__gen_clip.pickle_file)}")
+
+
+        elif event == "-RESULT_SHOW_IMAGES-":
+            if self.__tabs_mode == "tab_text":
+                self.__in_text = str(self._window["-IN_TEXT-"].get())
+                self.__in_text = str(re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9-.,_ ]', "", self.__in_text))
+                if os.path.isdir(PATH_SEARCH_RES+self.__in_text):
+                    print(f"Переходим: {PATH_SEARCH_RES+self.__in_text}")
+                    isdir_makefolder(PATH_SEARCH_RES+self.__in_text)
+                    open_folder_in_explorer(PATH_SEARCH_RES+self.__in_text)
+                else:
+                    print(f"Переходим: {PATH_SEARCH_RES}")
+                    isdir_makefolder(PATH_SEARCH_RES)
+                    open_folder_in_explorer(PATH_SEARCH_RES)
+            else:
+                print(f"Переходим: {PATH_SEARCH_RES}")
+                isdir_makefolder(PATH_SEARCH_RES)
+                open_folder_in_explorer(PATH_SEARCH_RES)
 
 
         elif event == "-BTN_SEARCH_TEXT-":
@@ -627,13 +455,24 @@ class Main_gui_image_search:
                                                                 "-RESULT_QUANTITY_IMAGES_OUT-",
                                                                 update_widget=True)
 
-            self.__gen_clip.searcher_clip(len_count=self._result_quantity_images,
-                                          query_str_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
-                                          is_str=True,
-                                          image_filenames=self.__gen_clip.image_list,
-                                          image_features=self.__gen_clip.pickle_file,
-                                          path_clip_image=self.__IN_PKL_PATH,
-                                          file_names_path=self.__IN_JSON_PATH)
+            # Проверяем, загружена модель, или нет, если нет, надо загрузить
+            if (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
+                print("Создаём модель и препроцессор")
+                # Выводим сообщение о создании модели и препроцессоре
+                print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
+                # Загружаем модель и предобработку
+                self.__model, self.__preprocess = clip.load(CLIP_LOAD)
+
+                self.__gen_clip.preprocess = self.__preprocess
+                self.__gen_clip.model = self.__model
+
+            self._window.start_thread(
+                lambda: self.__gen_clip.searcher_clip(len_count=self._result_quantity_images,
+                                                  query_str_pillow=str(self._window["-IN_TEXT-"].get()),
+                                                  is_str=True,
+                                                  image_filenames=self.__gen_clip.image_list,
+                                                  image_features=self.__gen_clip.pickle_file)
+            )
 
         elif event == "-BTN_SEARCH_PATH-":
             if not isinstance(self.__gen_clip.pickle_file, NoneType):
@@ -648,14 +487,25 @@ class Main_gui_image_search:
             if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
                 self.__cleanup_temp()
 
-            self.__gen_clip.searcher_clip(len_count=int(self._window["-RESULT_QUANTITY_IMAGES_OUT-"].get()),
-                                          query_image_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
-                                          is_str=False,
-                                          image_filenames=self.__gen_clip.image_list,
-                                          image_features=self.__gen_clip.pickle_file,
-                                          path_clip_image=self.__IN_PKL_PATH,
-                                          file_names_path=self.__IN_JSON_PATH)
+                # Проверяем, загружена модель, или нет, если нет, надо загрузить
+                if (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
+                    print("Создаём модель и препроцессор")
+                    # Выводим сообщение о создании модели и препроцессоре
+                    print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
+                    # Загружаем модель и предобработку
+                    self.__model, self.__preprocess = clip.load(CLIP_LOAD)
 
+                    self.__gen_clip.preprocess = self.__preprocess
+                    self.__gen_clip.model = self.__model
+            self._window.start_thread(
+                lambda: self.__gen_clip.searcher_clip(len_count=int(self._window["-RESULT_QUANTITY_IMAGES_OUT-"].get()),
+                                                  query_image_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
+                                                  is_str=False,
+                                                  image_filenames=self.__gen_clip.image_list,
+                                                  image_features=self.__gen_clip.pickle_file,
+                                                  path_clip_image=self.__IN_PKL_PATH,
+                                                  file_names_path=self.__IN_JSON_PATH)
+            )
 
 
     def __cleanup_temp(self):
@@ -704,6 +554,14 @@ class Main_gui_image_search:
         # else:
         # self.process_event(event)
 
+    async def __exit_return_break(self,key): # __on_callback
+        for _ in range(10):
+            self.__ex_return = True
+            sleep(0.01)
+        # print('pressed', key)
+        # await asyncio.sleep(1)
+        # print('end for', key)
+
     # https://github.com/PySimpleGUI/PySimpleGUI/issues/6193
     def __validate_integer(self,text):
         value = 0
@@ -711,7 +569,7 @@ class Main_gui_image_search:
             try:
                 value = int(text)
             except ValueError:
-                value = 100
+                value = -1
         return True if 0 <= value <= 1000000 else False  # Return True if valid input
 
 

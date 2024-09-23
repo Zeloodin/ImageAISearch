@@ -118,12 +118,13 @@ class Generate_clip_features:
 
 
         self.__ex_return = False
+        # Код прерывает цикл, в _from_folder И _for_folder И negative_filter
         try:
             # Если Английская расскладка, то код будет выполниться правильно.
-            add_hotkey("shift + `", lambda: asyncio.run(self.__exit_return_break("shift + `")))
+            add_hotkey("ctrl + q", lambda: asyncio.run(self.__exit_return_break("ctrl + q")))
         except ValueError:
             # Если Русская расскладка, то код будет выполниться, после try except ValueError.
-            add_hotkey("shift + ё", lambda: asyncio.run(self.__exit_return_break("shift + ё")))
+            add_hotkey("ctrl + й", lambda: asyncio.run(self.__exit_return_break("ctrl + й")))
         # На других расскладках не проверялись.
 
 
@@ -216,7 +217,7 @@ class Generate_clip_features:
         new_black_list = new_black_list if new_black_list != [""] else None
 
         # Отключает ex_return, переключает в исходное положение.
-        self.__ex_return = False
+        # self.__ex_return = False
 
         print("Начинаем сбор изображений")
         print("Проверяем на наличие пустых папок")
@@ -272,6 +273,19 @@ class Generate_clip_features:
             self.__image_filenames = self.__fol_mak_lis.image_list
         # Возвращаем список изображений
         return self.__image_filenames
+
+    @property
+    def ex_return(self):
+        return self.__ex_return
+
+    @ex_return.setter
+    def ex_return(self, exreturn:bool):
+        self.__ex_return = exreturn
+
+    def ex_return_all(self, exreturn:bool):
+        self.__ex_return = exreturn
+        if self.__fol_mak_lis:
+            self.__fol_mak_lis.ex_return = exreturn
 
     @property
     def image_list(self):
@@ -350,6 +364,7 @@ class Generate_clip_features:
             # print(i)
 
             if self.__ex_return:  # Остановка цикла, если ex_return == True
+                self.__ex_return = False
                 break
 
             if not self.exists_in_image_folder(aif['image_id'], image_filenames):
@@ -371,6 +386,7 @@ class Generate_clip_features:
         for image in all_image_features:
 
             if self.__ex_return:  # Остановка цикла, если ex_return == True
+                self.__ex_return = False
                 break
             if image['image_id'] == image_id:
                 # Если изображение найдено, возвращаем True
@@ -384,7 +400,7 @@ class Generate_clip_features:
     def get_features(self, image):
 
         # Отключает ex_return, переключает в исходное положение.
-        self.__ex_return = False
+        # self.__ex_return = False
 
         try:
             # Предобработка изображения и подготовка его к использованию моделью
@@ -414,7 +430,7 @@ class Generate_clip_features:
                                    save_every_n: int = 100,
                                    check_image_paths: bool = True):
         # Отключает ex_return, переключает в исходное положение.
-        self.__ex_return = False
+        # self.__ex_return = False
 
 
         if not isinstance(all_image_features, NoneType) and check_image_paths:
@@ -470,6 +486,7 @@ class Generate_clip_features:
             print(i, image_id)
 
             if self.__ex_return:  # Остановка цикла, если ex_return == True
+                self.__ex_return = False
                 break
 
             # Проверяем, существует ли изображение в уже обработанных
@@ -500,6 +517,7 @@ class Generate_clip_features:
                 continue
 
             if self.__ex_return:  # Остановка цикла, если ex_return == True
+                self.__ex_return = False
                 break
 
             # Сохраняем результаты через определенные интервалы
@@ -639,7 +657,7 @@ class Generate_clip_features:
 
 
         # Отключает ex_return, переключает в исходное положение.
-        self.__ex_return = False
+        # self.__ex_return = False
 
 
         # Вложенные определения переменных
@@ -704,6 +722,7 @@ class Generate_clip_features:
         # Преобразование характеристик изображений в NumPy массив
         for image in self.__image_features:
             if self.__ex_return:  # Остановка цикла, если ex_return == True
+                self.__ex_return = False
                 break
 
             # Векторная нормализация
@@ -733,7 +752,7 @@ class Generate_clip_features:
         # Установка параметров поиска
         # Устанавливаются параметры индекса HNSW и
         # производится добавление элементов.
-        if self.__is_str:
+        if self.__is_str and not self.ex_return:
             # Создание папки для сохранения результатов
             isdir_makefolder(PATH_SEARCH_RES)
             # Колличество ближайших соседей
@@ -782,6 +801,7 @@ class Generate_clip_features:
             for i, text in enumerate(self.__query_str_pillow):
 
                 if self.__ex_return:  # Остановка цикла, если ex_return == True
+                    self.__ex_return = False
                     break
 
                 # Каждый текст, переводит на английский язык.
@@ -797,16 +817,21 @@ class Generate_clip_features:
             for in_text, translate_text in self.__query_str_pillow:
 
                 if self.__ex_return:  # Остановка цикла, если ex_return == True
+                    self.__ex_return = False
                     break
 
                 # Токенизирует текст
                 self.__text_tokenized = clip.tokenize(translate_text).to(self.__device)
                 with torch.no_grad():
                     # Кодирует текст
-                    self.__text_features = self.__model.encode_text(self.__text_tokenized)
+                    try:
+                        self.__text_features = self.__model.encode_text(self.__text_tokenized)
+                    except AttributeError as e:
+                        print(f"Ошибка аттрибута: {e}")
+                        return None
                     # Нормализует вектор
                     self.__text_features /= self.__text_features.norm(dim=-1, keepdim=True)
-                
+
                 # Устанавливает значение k
                 self.__k = self.__len_count
                 # Если k меньше или равно количеству изображений, то k = количество изображений, иначе k = k
@@ -833,6 +858,7 @@ class Generate_clip_features:
                 for i, idx in enumerate(self.__labels):
 
                     if self.__ex_return:  # Остановка цикла, если ex_return == True
+                        self.__ex_return = False
                         break
 
                     # Печатает номер и имя изображения
@@ -866,8 +892,6 @@ class Generate_clip_features:
                             f"{PATH_SEARCH_RES}{in_text}\\{i}_img_{self.__filename}{self.__file_extension}")
                         # Присоединяет изображение к списку
                         self.__images_np_hnsw_clip_text.append(np.array(self.__img2))
-
-                        return in_text
                     except Exception as e:
                         # Печатает ошибку
                         print(f"Ошибка: {e}")
@@ -876,64 +900,70 @@ class Generate_clip_features:
                         # Продолжает цикл, игнорируя ошибку
                         continue
 
-        else:
-            if os.path.isfile(self.__query_image_pillow):
-                # Если входящие изображения не переданы, используем те, что уже есть
-                self.__query_image_pillow = self.convert_image(self.__query_image_pillow)
-                # Сохраняет векторное представление изображения
-                self.__query_image_features = self.get_features(self.__query_image_pillow)
+        if self.__ex_return:  # Остановка цикла, если ex_return == True
+            self.__ex_return = False
+            return None
 
-                ##########################
-                # Поиск ближайших соседей #
-                ##########################
+        if not self.__is_str and not self.ex_return:
+            try:
+                if os.path.isfile(self.__query_image_pillow):
+                    # Если входящие изображения не переданы, используем те, что уже есть
+                    self.__query_image_pillow = self.convert_image(self.__query_image_pillow)
+                    # Сохраняет векторное представление изображения
+                    self.__query_image_features = self.get_features(self.__query_image_pillow)
 
-                # Устанавливает значение k
-                self.__k = self.__len_count
-                # Если k меньше или равно количеству изображений, то k = количество изображений, иначе k = k
-                self.__k = self.__k if len(self.__image_features) >= self.__k else len(self.__image_features)
-                # Печатает значение k
-                print(f"k = {self.__k}")
-                print(f"len image features = {len(self.__image_features)}")
+                    ##########################
+                    # Поиск ближайших соседей #
+                    ##########################
 
-                # Инициализирует объект NearestNeighbors с алгоритмом поиска ближайших соседей и метрикой "по Евклиду".
-                # self.__features это векторные представления изображений.
-                self.__knn = NearestNeighbors(n_neighbors=self.__k, algorithm='brute', metric='euclidean')
-                # Обучает объект NearestNeighbors на векторных представлениях изображений.
-                try:
-                    self.__knn.fit(self.__features)
-                except InvalidParameterError:
-                    print("Ошибка. Пустая модель, пустой список изображений.")
-                    print("Не удалось найти в пустой модели, изображение")
-                    return None
-                # Ищет ближайшие соседей по векторным представлениям изображений.
-                # self.__indices это список индексов ближайших соседей.
-                # Возвращает список индексов ближайших соседей для каждого изображения.
-                self.__indices = self.__knn.kneighbors(self.__query_image_features, return_distance=False)
-                # Создает пустой список для хранения найденных изображений.
-                self.__found_images = []
+                    # Устанавливает значение k
+                    self.__k = self.__len_count
+                    # Если k меньше или равно количеству изображений, то k = количество изображений, иначе k = k
+                    self.__k = self.__k if len(self.__image_features) >= self.__k else len(self.__image_features)
+                    # Печатает значение k
+                    print(f"k = {self.__k}")
+                    print(f"len image features = {len(self.__image_features)}")
 
-                ##########################
-                # Печать результатов     #
-                ##########################
+                    # Инициализирует объект NearestNeighbors с алгоритмом поиска ближайших соседей и метрикой "по Евклиду".
+                    # self.__features это векторные представления изображений.
+                    self.__knn = NearestNeighbors(n_neighbors=self.__k, algorithm='brute', metric='euclidean')
+                    # Обучает объект NearestNeighbors на векторных представлениях изображений.
+                    try:
+                        self.__knn.fit(self.__features)
+                    except InvalidParameterError:
+                        print("Ошибка. Пустая модель, пустой список изображений.")
+                        print("Не удалось найти в пустой модели, изображение")
+                        return None
+                    # Ищет ближайшие соседей по векторным представлениям изображений.
+                    # self.__indices это список индексов ближайших соседей.
+                    # Возвращает список индексов ближайших соседей для каждого изображения.
+                    self.__indices = self.__knn.kneighbors(self.__query_image_features, return_distance=False)
+                    # Создает пустой список для хранения найденных изображений.
+                    self.__found_images = []
 
-                # Печатает результаты поиска ближайших соседей
-                print("Печатает результаты поиска ближайших соседей")
-                print(self.__indices)
+                    ##########################
+                    # Печать результатов     #
+                    ##########################
 
-                ##########################
-                # Добавление найденных изображений #
-                ##########################
+                    # Печатает результаты поиска ближайших соседей
+                    print("Печатает результаты поиска ближайших соседей")
+                    print(self.__indices)
 
-                # Если путь к файлам не передан, используем те, что уже есть
-                self.fit_NearestNeighbors(self.__file_names, self.__file_names_path)
+                    ##########################
+                    # Добавление найденных изображений #
+                    ##########################
 
-                # Проходимся по списку индексов ближайших соседей
-                for i, x in enumerate(self.__indices[0]):
-                    if self.__ex_return:  # Остановка цикла, если ex_return == True
-                        break
+                    # Если путь к файлам не передан, используем те, что уже есть
+                    self.fit_NearestNeighbors(self.__file_names, self.__file_names_path)
 
-                    if search_in_list(self.__file_names[x],self.__BLACK_NEGATIVE_LIST):
-                        continue
+                    # Проходимся по списку индексов ближайших соседей
+                    for i, x in enumerate(self.__indices[0]):
+                        if self.__ex_return:  # Остановка цикла, если ex_return == True
+                            self.__ex_return = False
+                            break
+
+                        if search_in_list(self.__file_names[x],self.__BLACK_NEGATIVE_LIST):
+                            continue
 
                 # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
                 # try:
@@ -968,6 +998,8 @@ class Generate_clip_features:
                 # except Exception as e:
                 #     print(e)
                 #     continue
+            except Exception as e:
+                pass
 
     def fit_NearestNeighbors(self, file_names: Optional[List[str]] = None, file_names_path: Optional[str] = None) -> None:
         """

@@ -184,13 +184,13 @@ class Folder_make_list:
         #             self._image_list.append(string)
 
         # Код прерывает цикл, в _from_folder И _for_folder И negative_filter
-        self.__ex_return = False
+
         try:
             # Если Английская расскладка, то код будет выполниться правильно.
-            add_hotkey("shift + `", lambda: asyncio.run(self.__exit_return_break("shift + `")))
+            add_hotkey("ctrl + q", lambda: asyncio.run(self.__exit_return_break("ctrl + q")))
         except ValueError:
             # Если Русская расскладка, то код будет выполниться, после try except ValueError.
-            add_hotkey("shift + ё", lambda: asyncio.run(self.__exit_return_break("shift + ё")))
+            add_hotkey("ctrl + й", lambda: asyncio.run(self.__exit_return_break("ctrl + й")))
         # На других расскладках не проверялись.
 
     @property
@@ -260,6 +260,14 @@ class Folder_make_list:
         Item: Элемент для проверки.
         """
         return isinstance(item, (str, list))
+
+    @property
+    def ex_return(self):
+        return self.__ex_return
+
+    @ex_return.setter
+    def ex_return(self, exreturn:bool):
+        self.__ex_return = exreturn
 
     def find(self,
              new_folder_list: Union[List[str], str] = None,
@@ -404,10 +412,12 @@ class Folder_make_list:
         # Проходим по всем папкам в списке
         for folder in self._new_folder_list:
             if self.__ex_return:  # Остановка цикла, если ex_return == True
+                self.__ex_return = False
                 break
             # Проходим по всем каталогам и подкаталогам в папке
             for root, dirs, files in os.walk(folder):
                 if self.__ex_return:  # Остановка цикла, если ex_return == True
+                    self.__ex_return = False
                     break
                 # Вызываем функцию фильтрации файлов для каждого каталога
                 self._filter_files(root, files, self._filter_work,
@@ -436,10 +446,12 @@ class Folder_make_list:
         for file in tqdm(files):
             self._folder_counter += 1
             if self.__ex_return:  # Остановка цикла, если ex_return == True
+                self.__ex_return = False
                 break
             # Проверяем, является ли файл изображением
             if file.lower().endswith(IMG_SUP_EXTS): #('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp')
                 if self.__ex_return:  # Остановка цикла, если ex_return == True
+                    self.__ex_return = False
                     break
                 # Проверяем, есть ли файл в списке уже обработанных изображений
 
@@ -485,6 +497,7 @@ class Folder_make_list:
             # print(f"{i} Всего изображений: {len(self._image_list)}")
 
             if self.__ex_return:  # Остановка цикла, если ex_return == True
+                self.__ex_return = False
                 break
             if not self._filter_string(img_lst):
                 self._image_list.remove(img_lst)
