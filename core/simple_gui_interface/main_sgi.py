@@ -454,28 +454,44 @@ class Main_gui_image_search:
 
         elif event == "-BTN_POSITIVE_PATH_LIST-":
             multilist = self._window["-MULTI_POSITIVE_PATH_LIST-"].get()
-            files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+            try:
+                files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+            except TypeError:
+                print("Ошибка. Не можем добавить. Поврежден файл, или папка")
+                return None
             result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
             await asyncio.sleep(0)
             self._window["-MULTI_POSITIVE_PATH_LIST-"].update(result)
 
         elif event == "-BTN_NEGATIVE_PATH_LIST-":
             multilist = self._window["-MULTI_NEGATIVE_PATH_LIST-"].get()
-            files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+            try:
+                files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+            except TypeError:
+                print("Ошибка. Не можем добавить. Поврежден файл, или папка")
+                return None
             result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
             await asyncio.sleep(0)
             self._window["-MULTI_NEGATIVE_PATH_LIST-"].update(result)
 
         elif event == "-BTN_WHITE_PATH_LIST-":
             multilist = self._window["-MULTI_WHITE_PATH_LIST-"].get()
-            files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+            try:
+                files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+            except TypeError:
+                print("Ошибка. Не можем добавить. Поврежден файл, или папка")
+                return None
             result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
             await asyncio.sleep(0)
             self._window["-MULTI_WHITE_PATH_LIST-"].update(result)
 
         elif event == "-BTN_BLACK_PATH_LIST-":
             multilist = self._window["-MULTI_BLACK_PATH_LIST-"].get()
-            files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+            try:
+                files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+            except TypeError:
+                print("Ошибка. Не можем добавить. Поврежден файл, или папка")
+                return None
             result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
             await asyncio.sleep(0)
             self._window["-MULTI_BLACK_PATH_LIST-"].update(result)

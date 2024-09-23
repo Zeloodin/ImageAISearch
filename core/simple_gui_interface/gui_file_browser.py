@@ -13,7 +13,12 @@ def popup_paths(path=Path.home(), width=60):
         return file[:width // 2 - 3] + '...' + file[-width // 2:] if len(file) > width else file
 
     def create_win(path):
-        files = sorted(sorted(Path(path).iterdir()), key=lambda x: Path(x).is_file())
+        try:
+            files = sorted(sorted(Path(path).iterdir()), key=lambda x: Path(x).is_file())
+        except OSError:
+            print(f"Файл повреждён в папке")
+            return None
+
         treedata = sg.TreeData()
         for i, file in enumerate(files):
             f = str(file)
@@ -60,6 +65,8 @@ def popup_paths(path=Path.home(), width=60):
 
     while True:
         result = create_win(path)
+        if result == None:
+            return None
         if isinstance(result, str):
             path = result
         else:

@@ -1,3 +1,3 @@
 chcp 65001
-venv\Scripts\python.exe run.py
+installer_files\env\python.exe run.py
 pause
