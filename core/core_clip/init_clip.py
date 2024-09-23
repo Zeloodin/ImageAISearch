@@ -992,14 +992,14 @@ class Generate_clip_features:
                         self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
                     except KeyError as e:
                         print(f"Ошибка ключа: {e}")
-                        return None
                     # Добавляет изображение в список self.__found_images
                     self.__found_images.append(np.array(self.__img1))
                 # except Exception as e:
                 #     print(e)
                 #     continue
             except Exception as e:
-                pass
+                # print(e)
+                print("Не удалось найти")
 
     def fit_NearestNeighbors(self, file_names: Optional[List[str]] = None, file_names_path: Optional[str] = None) -> None:
         """

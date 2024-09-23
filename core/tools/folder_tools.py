@@ -425,7 +425,14 @@ class Folder_make_list:
                                    get_widget_PySimpleGUI,
                                    update_PySimpleGUI)
 
-        save_json_file(self._image_list, JSON_FILE_PATH)
+        if not isinstance(self._image_list, NoneType):
+            isdir_makefolder("\\".join(JSON_FILE_PATH.split("\\")[:-1]))
+            save_json_file(self._image_list, JSON_FILE_PATH)
+        else:
+            save_json_file([], JSON_FILE_PATH)
+            print("Не удалось сохранить не существующий список")
+            print("Пожалуйста. В списке папок изображений, выберите папку, ")
+            print("картинками, и попробуйте повторно нажать на, Сканировать")
 
     # Функция для фильтрации файлов изображений в каталоге
     def _filter_files(self,root, files, _filter_work,

@@ -76,7 +76,9 @@ class Main_gui_image_search:
              sg.Frame("",[[sg.Push(), self._build_search_frame()],
                          [sg.Push(), self._build_make_folder_list_frame()]]),
              self._build_folder_multiline_list_frame()],
-            [sg.T("В случае если хотите остановить сканирование, поиск\nудерживайте клавиши Ctrl + Q, для остановки")]]
+            [sg.T("В случае если хотите остановить сканирование, поиск\n"
+                  "удерживайте клавиши Ctrl + Q, для остановки\n"
+                  "Несколько раз нажимайте, чтобы остановить")]]
         self._window = sg.Window(
             title="ImageAISearch",
             layout=self._layout_main,
@@ -84,22 +86,22 @@ class Main_gui_image_search:
             margins=(10, 10),
             font=(None,12))
 
-        # self._window["-TEXT_COUNT_IMAGES-"].set_focus()
-        # self._window["-BTN_FOLDER_MAKE_LIST-"].set_focus()
-        # self._window["-BTN_POSITIVE_PATH_LIST-"].set_focus()
-        # self._window["-BTN_NEGATIVE_PATH_LIST-"].set_focus()
-        # self._window["-RESULT_SHOW_IMAGES-"].set_focus()
-        # self._window["-RESULT_QUANTITY_IMAGES_OUT-"].set_focus()
-        # self._window["-FIBR_SEARCH_PATH-"].set_focus()
-        # self._window["-BTN_SEARCH_PATH-"].set_focus()
-        # self._window["-BTN_SEARCH_TEXT-"].set_focus()
-        # self._window["-TEXT_RESULT_COUNT_IMAGES-"].set_focus()
+        self._window["-RESULT_QUANTITY_IMAGES_OUT-"].set_focus()
+        self._window["-TEXT_COUNT_IMAGES-"].set_focus()
+        self._window["-TEXT_RESULT_COUNT_IMAGES-"].set_focus()
+        self._window["-IN_TEXT-"].set_focus()
+        self._window["-BTN_SEARCH_TEXT-"].set_focus()
+        self._window["-RESULT_SHOW_IMAGES-"].set_focus()
+        self._window["-BTN_POSITIVE_PATH_LIST-"].set_focus()
+        self._window["-MULTI_POSITIVE_PATH_LIST-"].set_focus()
+        self._window["-BTN_NEGATIVE_PATH_LIST-"].set_focus()
+        self._window["-MULTI_NEGATIVE_PATH_LIST-"].set_focus()
+        self._window["-BTN_FOLDER_MAKE_LIST-"].set_focus()
+        self._window["-CHBX_CLEANUP_FIND_RES-"].set_focus()
+        self._window["-IN_TEXT_PATH-"].set_focus()
+        self._window["-BTN_SEARCH_PATH-"].set_focus()
+        self._window["-FIBR_SEARCH_PATH-"].set_focus()
 
-        # Раньше это работало отлично.
-        # Сейчас, это перестало работать
-        # При других символах, будет вызываться ошибка.
-        # Надо в таких случаях, или выдавать ошибку в консоль, или заменять всё на ничего, кроме чисел.
-        # Внимание, Сохранять каждые 0 шагов, вызовет ошибку. Это надо запомнить.
         self._vcmd = (self._window.TKroot.register(self.__validate_integer), '%P')
         self._window['-RESULT_QUANTITY_IMAGES_OUT-'].widget.configure(validate='all', validatecommand=self._vcmd)
 
@@ -210,7 +212,7 @@ class Main_gui_image_search:
 
     def _build_cleanup_images_find_frame(self):
         layout_cleanup_images_find = [
-            [sg.Checkbox(key="-CHBX_CLEANUP_FIND_RES-", text="Автоматически удалять найденные изображения из папки images_find")]
+            [sg.Checkbox(key="-CHBX_CLEANUP_FIND_RES-", text="Автоматически удалять найденные изображения, после нажатия поиска")]
         ]
         return sg.Frame("",layout_cleanup_images_find)
 
@@ -271,7 +273,10 @@ class Main_gui_image_search:
                 pass
 
         elif event == 'Вставить':
-            self._widget.insert(sg.tk.INSERT, self._window.TKroot.clipboard_get())
+            try:
+                self._widget.insert(sg.tk.INSERT, self._window.TKroot.clipboard_get())
+            except AttributeError:
+                pass
 
         elif event == 'Вырезать':
             try:
