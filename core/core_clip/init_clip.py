@@ -790,17 +790,17 @@ class Generate_clip_features:
                 # перевод текста в английский язык и сохранение в переменную temp_translation
                 temp_translation = mini_translator(text, to_lang, from_lang)
                 # перезапись в self.__query_str_pillow[i] переведенного текста
-                self.__query_str_pillow[i] = temp_translation
+                self.__query_str_pillow[i] = [text,temp_translation]
 
             # Вычисление векторов текста
             # Выполняется поиск ближайших точек для каждого текстового запроса.
-            for in_text in self.__query_str_pillow:
+            for in_text, translate_text in self.__query_str_pillow:
 
                 if self.__ex_return:  # Остановка цикла, если ex_return == True
                     break
 
                 # Токенизирует текст
-                self.__text_tokenized = clip.tokenize(in_text).to(self.__device)
+                self.__text_tokenized = clip.tokenize(translate_text).to(self.__device)
                 with torch.no_grad():
                     # Кодирует текст
                     self.__text_features = self.__model.encode_text(self.__text_tokenized)
@@ -854,9 +854,11 @@ class Generate_clip_features:
                         # Печатает имя и расширение
                         print(self.__filename, self.__file_extension)
                         # Создаёт директорию
-                        print(f"До: {in_text}")
-                        in_text = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9-., ]',"", in_text)
-                        print(f"После: {in_text}")
+                        # print(f"До: {in_text}")
+                        in_text = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9-.,_ ]',"", in_text)
+                        # print(f"После: {in_text}")
+                        print(f"Обработанный: {in_text}")
+
 
                         isdir_makefolder(PATH_SEARCH_RES + in_text)
                         # Сохраняет изображение
@@ -864,9 +866,11 @@ class Generate_clip_features:
                             f"{PATH_SEARCH_RES}{in_text}\\{i}_img_{self.__filename}{self.__file_extension}")
                         # Присоединяет изображение к списку
                         self.__images_np_hnsw_clip_text.append(np.array(self.__img2))
+
+                        return in_text
                     except Exception as e:
                         # Печатает ошибку
-                        print(e)
+                        print(f"Ошибка: {e}")
                         # Печатает значения для отладки
                         print(f'{in_text = }\n{idx = }\n{i = }')
                         # Продолжает цикл, игнорируя ошибку
@@ -954,7 +958,11 @@ class Generate_clip_features:
                     # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
                     isdir_makefolder(PATH_SEARCH_RES)
                     # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
-                    self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
+                    try:
+                        self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
+                    except KeyError as e:
+                        print(f"Ошибка ключа: {e}")
+                        return None
                     # Добавляет изображение в список self.__found_images
                     self.__found_images.append(np.array(self.__img1))
                 # except Exception as e:

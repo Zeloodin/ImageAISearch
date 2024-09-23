@@ -12,7 +12,7 @@ PATH_DATA = CWD_PATH+"data"+"\\"
 PATH_SEARCH_RES = PATH_DATA+"images_find"+"\\"
 
 PKL_FILE_PATH = PATH_DATA+"clip_image_features.pkl"
-JSON_FILE_PATH = PATH_DATA+"sample.json"
+JSON_FILE_PATH = PATH_DATA+"image_list.json"
 TEMP_VAL = []
 EMPTY_LIST = []
 CLIP_LOAD = "ViT-B/32"
@@ -20,7 +20,9 @@ CLIP_LOAD = "ViT-B/32"
 
 IMG_EXTS = Image.registered_extensions()
 # supported_extensions
-IMG_SUP_EXTS = tuple(ex for ex, f in IMG_EXTS.items() if f in Image.OPEN)
+#IMG_SUP_EXTS = tuple(ex for ex, f in IMG_EXTS.items() if f in Image.OPEN)
+IMG_SUP_EXTS = ('.png', '.apng', '.bmp', '.jfif', '.jpg', '.jpe', '.jpeg', '.tif', '.tiff', '.tga', '.tga', '.webp')
+
 IMG_FILE_TYPES = (tuple(('Images', f"*{ex}*") for ex in
                         ('.png', '.apng', '.bmp', '.jfif', '.jpg', '.jpe', '.jpeg', '.tif', '.tiff', '.tga', '.tga', '.webp'))+
                   # (tuple((f, f"*{ex}*") for ex, f  in Image.registered_extensions().items())) +
