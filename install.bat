@@ -1,4 +1,3 @@
-chcp 65001
 @echo off
 
 cd /D "%~dp0"

@@ -506,7 +506,8 @@ class Generate_clip_features:
                 image_features = self.get_features(image)
                 # print("Добавляем данные в список всех изображений")
                 # Добавляем данные в список всех изображений
-                all_image_features.append({'image_id': image_id, 'features': image_features})
+                if {'image_id': image_id, 'features': image_features} not in all_image_features:
+                    all_image_features.append({'image_id': image_id, 'features': image_features})
             # Обработка исключения NameError
             except NameError as e:
                 print("NameError:", e)
@@ -752,7 +753,7 @@ class Generate_clip_features:
         # Установка параметров поиска
         # Устанавливаются параметры индекса HNSW и
         # производится добавление элементов.
-        if self.__is_str and not self.ex_return:
+        if self.__is_str:
             # Создание папки для сохранения результатов
             isdir_makefolder(PATH_SEARCH_RES)
             # Колличество ближайших соседей
@@ -844,67 +845,72 @@ class Generate_clip_features:
                 # self.__text_features.cpu().numpy() это текстовые векторы в виде numpy-массива.
                 # self.__k это количество ближайших соседей, которое мы хотим получить.
                 # self.__distances это список расстояний до ближайших соседей.
-                self.__labels, self.__distances = self.__index.knn_query(self.__text_features.cpu().numpy(), k=self.__k)
-
-                # Формирование результата
-                # Сформированный результат отображает для найденных изображений.
-                self.__images_np_hnsw_clip_text = []
-                # Печатает длину списка self.__labels
-                print(f"{self.__labels = }")
-                # убираем список self.__labels[0]
-                self.__labels = self.__labels[0]
-
-                # Проходимся по списку изображений
-                for i, idx in enumerate(self.__labels):
-
-                    if self.__ex_return:  # Остановка цикла, если ex_return == True
-                        self.__ex_return = False
-                        break
-
-                    # Печатает номер и имя изображения
-                    # Если в self.__file_names[idx] нет значений None, то печатает имя файла
-                    if self.__file_names is not None:
-                        # Печатает имя файла
-                        print(f'{self.__file_names[idx]}')
-
-                    try:
-                        # Печатает имя файла
-                        print(f'{self.__file_names[idx]}')
-                        # Открывает изображение
-                        self.__img2 = Image.open(f'{self.__file_names[idx]}')
-
-                        # Разделяет имя файла
-                        self.__filename = ".".join(self.__file_names[idx].split("\\")[-1].split(".")[:-1])
-                        # Разделяет расширение
-                        self.__file_extension = "." + self.__file_names[idx].split("\\")[-1].split(".")[-1]
-                        # Печатает имя и расширение
-                        print(self.__filename, self.__file_extension)
-                        # Создаёт директорию
-                        # print(f"До: {in_text}")
-                        in_text = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9-.,_ ]',"", in_text)
-                        # print(f"После: {in_text}")
-                        print(f"Обработанный: {in_text}")
+                try:
+                    self.__labels, self.__distances = self.__index.knn_query(self.__text_features.cpu().numpy(), k=self.__k)
 
 
-                        isdir_makefolder(PATH_SEARCH_RES + in_text)
-                        # Сохраняет изображение
-                        self.__img2.save(
-                            f"{PATH_SEARCH_RES}{in_text}\\{i}_img_{self.__filename}{self.__file_extension}")
-                        # Присоединяет изображение к списку
-                        self.__images_np_hnsw_clip_text.append(np.array(self.__img2))
-                    except Exception as e:
-                        # Печатает ошибку
-                        print(f"Ошибка: {e}")
-                        # Печатает значения для отладки
-                        print(f'{in_text = }\n{idx = }\n{i = }')
-                        # Продолжает цикл, игнорируя ошибку
-                        continue
+                    # Формирование результата
+                    # Сформированный результат отображает для найденных изображений.
+                    self.__images_np_hnsw_clip_text = []
+                    # Печатает длину списка self.__labels
+                    print(f"{self.__labels = }")
+                    # убираем список self.__labels[0]
+                    self.__labels = self.__labels[0]
+
+                    # Проходимся по списку изображений
+                    for i, idx in enumerate(self.__labels):
+
+                        if self.__ex_return:  # Остановка цикла, если ex_return == True
+                            self.__ex_return = False
+                            break
+
+                        # Печатает номер и имя изображения
+                        # Если в self.__file_names[idx] нет значений None, то печатает имя файла
+                        if self.__file_names is not None:
+                            # Печатает имя файла
+                            print(f'{self.__file_names[idx]}')
+
+                        try:
+                            # Печатает имя файла
+                            print(f'{self.__file_names[idx]}')
+                            # Открывает изображение
+                            self.__img2 = Image.open(f'{self.__file_names[idx]}')
+
+                            # Разделяет имя файла
+                            self.__filename = ".".join(self.__file_names[idx].split("\\")[-1].split(".")[:-1])
+                            # Разделяет расширение
+                            self.__file_extension = "." + self.__file_names[idx].split("\\")[-1].split(".")[-1]
+                            # Печатает имя и расширение
+                            print(self.__filename, self.__file_extension)
+                            # Создаёт директорию
+                            # print(f"До: {in_text}")
+                            in_text = re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9-.,_ ]',"", in_text)
+                            # print(f"После: {in_text}")
+                            print(f"Обработанный: {in_text}")
+
+
+                            isdir_makefolder(PATH_SEARCH_RES + in_text)
+                            # Сохраняет изображение
+                            self.__img2.save(
+                                f"{PATH_SEARCH_RES}{in_text}\\{i}_img_{self.__filename}{self.__file_extension}")
+                            # Присоединяет изображение к списку
+                            self.__images_np_hnsw_clip_text.append(np.array(self.__img2))
+                        except Exception as e:
+                            # Печатает ошибку
+                            print(f"Ошибка: {e}")
+                            # Печатает значения для отладки
+                            print(f'{in_text = }\n{idx = }\n{i = }')
+                            # Продолжает цикл, игнорируя ошибку
+                            continue
+                except RuntimeError as e:
+                    # print(f"Простите, не нашли. {e}")
+                    continue
 
         if self.__ex_return:  # Остановка цикла, если ex_return == True
             self.__ex_return = False
             return None
 
-        if not self.__is_str and not self.ex_return:
+        if not self.__is_str:
             try:
                 if os.path.isfile(self.__query_image_pillow):
                     # Если входящие изображения не переданы, используем те, что уже есть
@@ -958,6 +964,7 @@ class Generate_clip_features:
 
                     # Проходимся по списку индексов ближайших соседей
                     for i, x in enumerate(self.__indices[0]):
+                        print(i)
                         if self.__ex_return:  # Остановка цикла, если ex_return == True
                             self.__ex_return = False
                             break
@@ -965,35 +972,32 @@ class Generate_clip_features:
                         if search_in_list(self.__file_names[x],self.__BLACK_NEGATIVE_LIST):
                             continue
 
-                # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
-                # try:
-                    print(f"len file_names:{len(self.__file_names)}, index x:{x}, i:{i}")
+                    # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
+                    # try:
+                        print(f"len file_names:{len(self.__file_names)}, index x:{x}, i:{i}")
 
-                    # FIX: IndexError: list index out of range
-                    # Переменная, которая хранит путь к изображению
-                    self.__in_path = self.__file_names[x]
-                    print(self.__in_path)
-                    # Открываеи изображение с указанным путём и сохраняем его в self.__img1
-                    self.__img1 = Image.open(self.__in_path)
+                        # FIX: IndexError: list index out of range
+                        # Переменная, которая хранит путь к изображению
+                        self.__in_path = self.__file_names[x]
+                        print(self.__in_path)
+                        # Открываеи изображение с указанным путём и сохраняем его в self.__img1
+                        self.__img1 = Image.open(self.__in_path)
 
-                    # Переменные, которые хранят название и расширение файла
-                    # self.__filename - имя файла без расширения
-                    self.__filename = ".".join(self.__in_path.split("\\")[-1].split(".")[:-1])
-                    # self.__file_extension - расширение файла
-                    self.__file_extension = "." + self.__in_path.split("\\")[-1].split(".")[-1]
-                    # Выводим имя и расширение
-                    print(self.__filename, self.__file_extension)
+                        # Переменные, которые хранят название и расширение файла
+                        # self.__filename - имя файла без расширения
+                        self.__filename = ".".join(self.__in_path.split("\\")[-1].split(".")[:-1])
+                        # self.__file_extension - расширение файла
+                        self.__file_extension = "." + self.__in_path.split("\\")[-1].split(".")[-1]
+                        # Выводим имя и расширение
+                        print(self.__filename, self.__file_extension)
 
-                    # Сохраняет изображение в папку images_find (переменная PATH_SEARCH_RES) (Если нет папки, то создает её)
-                    # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
-                    isdir_makefolder(PATH_SEARCH_RES)
-                    # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
-                    try:
+                        # Сохраняет изображение в папку images_find (переменная PATH_SEARCH_RES) (Если нет папки, то создает её)
+                        # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
+                        isdir_makefolder(PATH_SEARCH_RES)
+                        # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
                         self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
-                    except KeyError as e:
-                        print(f"Ошибка ключа: {e}")
-                    # Добавляет изображение в список self.__found_images
-                    self.__found_images.append(np.array(self.__img1))
+                        # Добавляет изображение в список self.__found_images
+                        self.__found_images.append(np.array(self.__img1))
                 # except Exception as e:
                 #     print(e)
                 #     continue

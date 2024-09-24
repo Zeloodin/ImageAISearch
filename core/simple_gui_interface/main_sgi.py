@@ -115,7 +115,7 @@ class Main_gui_image_search:
                 save_json_file(self.__gen_clip.image_list, self.__IN_JSON_PATH)
 
         if self.__gen_clip.pickle_file:
-            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанно изображений: {len(self.__gen_clip.pickle_file)}")
+            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Добавлено в базу данных: {len(self.__gen_clip.pickle_file)}")
 
         print("run started")
         # Определяем устройство для выполнения операций
@@ -124,11 +124,19 @@ class Main_gui_image_search:
         # Выводим информацию о выбранном устройстве
         print("device:", self.__device)
 
-    #
-    #         self._layout_main = [
-    #             [sg.TabGroup(
-    #                 [[sg.Tab("Tab 1", ),
-    #                   sg.Tab("Tab 2", )]])]]
+        self._window.start_thread(lambda:self.update_counts())
+
+    def update_counts(self):
+        while(True):
+            try:
+                self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
+            except:
+                pass
+            try:
+                self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Добавлено в базу данных: {len(self.__gen_clip.pickle_file)}")
+            except:
+                pass
+            sleep(0.1)
 
 
     def _build_search_frame(self):
@@ -151,8 +159,8 @@ class Main_gui_image_search:
                                   sg.FileBrowse(  # key="-FIBR_SEARCH_PATH-",
                                       button_text="Выбрать картинку",
                                       # enable_events=True,
-                                      file_types=IMG_FILE_TYPES
-                                  )]]
+                                      file_types=IMG_FILE_TYPES)
+                                  ]]
                                   )
                          ]]
 
@@ -179,23 +187,25 @@ class Main_gui_image_search:
 
     def _build_folder_multiline_list_frame(self):
         layout_folder_multiline_list = [
-        [sg.Frame("Список папок изображений",[
-            [sg.B("Выбрать файлы и папки",
-                  key="-BTN_POSITIVE_PATH_LIST-")],
+        [sg.Frame("Список папок",[
+            [sg.FolderBrowse( key="-BTN_POSITIVE_PATH_LIST-",
+                button_text="Выбрать папку",
+                enable_events=True)],
             [sg.Multiline(key="-MULTI_POSITIVE_PATH_LIST-",
                           size=(30, 12),
                           right_click_menu=self.__right_click_menu,
                           horizontal_scroll=True)
             ]])],
 
-        [sg.Frame("Негативный список папок",[
-            [sg.B("Выбрать файлы и папки",
-                  key="-BTN_NEGATIVE_PATH_LIST-")],
+        [sg.Frame("Негативный список папок", [
+            [sg.FolderBrowse(key="-BTN_NEGATIVE_PATH_LIST-",
+                 button_text="Выбрать папку",
+                 enable_events=True)],
             [sg.Multiline(key="-MULTI_NEGATIVE_PATH_LIST-",
-                          size=(30, 12),
-                          right_click_menu=self.__right_click_menu,
-                          horizontal_scroll=True)
-            ]])]
+                      size=(30, 12),
+                      right_click_menu=self.__right_click_menu,
+                      horizontal_scroll=True)
+             ]])]
         ]
         return sg.Frame(
             "Список путей папок, для сбора изображений, \nи нахождения по ним изображения",
@@ -204,9 +214,10 @@ class Main_gui_image_search:
     def _build_make_folder_list_frame(self):
         layout_make_folder_list = [
                 [sg.T("Запуск сбора изображений, \nи добавление в файловый список")],
-                [sg.B(key="-BTN_FOLDER_MAKE_LIST-", button_text="Сканировать")],
+                [sg.B(key="-BTN_FOLDER_MAKE_LIST-", button_text="Сканировать"),
+                sg.B(key="-BTN_TRAIN_MODEL-", button_text="Обучить")],
                 [sg.T("Всего изображений: 0", key="-TEXT_COUNT_IMAGES-")],
-                [sg.T("Всего обработанно изображений: 0", key="-TEXT_RESULT_COUNT_IMAGES-")],
+                [sg.T("Добавлено в базу данных: 0", key="-TEXT_RESULT_COUNT_IMAGES-")],
             ]
         return sg.Frame("", layout_make_folder_list)
 
@@ -311,22 +322,22 @@ class Main_gui_image_search:
         elif event == "-BTN_POSITIVE_PATH_LIST-":
             multilist = self._window["-MULTI_POSITIVE_PATH_LIST-"].get()
             try:
-                files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+                folder = value
             except TypeError:
-                print("Ошибка. Не можем добавить. Поврежден файл, или папка")
+                print("Ошибка. Не можем добавить. Повреждена папка")
                 return None
-            result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
+            result = multilist+"\n"+folder+"\n" if multilist != "" else multilist+folder+"\n"
             await asyncio.sleep(0)
             self._window["-MULTI_POSITIVE_PATH_LIST-"].update(result)
 
         elif event == "-BTN_NEGATIVE_PATH_LIST-":
             multilist = self._window["-MULTI_NEGATIVE_PATH_LIST-"].get()
             try:
-                files = '\n'.join(popup_paths(path=str(Path.cwd()), width=80))
+                folder = value
             except TypeError:
-                print("Ошибка. Не можем добавить. Поврежден файл, или папка")
+                print("Ошибка. Не можем добавить. Повреждена папка")
                 return None
-            result = multilist+"\n"+files+"\n" if multilist != "" else multilist+files+"\n"
+            result = multilist+"\n"+folder+"\n" if multilist != "" else multilist+folder+"\n"
             await asyncio.sleep(0)
             self._window["-MULTI_NEGATIVE_PATH_LIST-"].update(result)
 
@@ -349,12 +360,12 @@ class Main_gui_image_search:
                     self.__new_neg_folder_list,
                     filter_work=True,
                     append_white=False,
-                    save_every_n=500,
+                    save_every_n=5000,
                     window_PySimpleGUI=self._window,
                     get_widget_PySimpleGUI="-TEXT_COUNT_IMAGES-",
                     update_PySimpleGUI=f"Всего изображений: {len(self.__gen_clip.get_image_list())}"
                 )
-            ,"-BTN_TRAIN_MODEL-"
+            ,"-BTN_FLASHING_TRAIN_MODEL-"
             )
             await asyncio.sleep(0)
 
@@ -373,7 +384,112 @@ class Main_gui_image_search:
             self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
             print(f'{self._window["-TEXT_COUNT_IMAGES-"].get()}')
 
+        elif event == "-UPDATE_COUNTS_IMAGES-":
+            self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
+            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Добавлено в базу данных: {len(self.__gen_clip.pickle_file)}")
+
+
+        elif event == "-RESULT_SHOW_IMAGES-":
+            if self.__tabs_mode == "tab_text":
+                self.__in_text = str(self._window["-IN_TEXT-"].get())
+                self.__in_text = str(re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9-.,_ ]', "", self.__in_text))
+                if os.path.isdir(PATH_SEARCH_RES+self.__in_text):
+                    print(f"Переходим: {PATH_SEARCH_RES+self.__in_text}")
+                    isdir_makefolder(PATH_SEARCH_RES+self.__in_text)
+                    open_folder_in_explorer(PATH_SEARCH_RES+self.__in_text)
+                else:
+                    print(f"Переходим: {PATH_SEARCH_RES}")
+                    isdir_makefolder(PATH_SEARCH_RES)
+                    open_folder_in_explorer(PATH_SEARCH_RES)
+            else:
+                self.__in_text = str(self._window['-IN_TEXT_PATH-'].get())
+                self.__in_text = str(re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9-.,_ ]', "", self.__in_text))
+                print(f"Переходим: {PATH_SEARCH_RES}")
+                isdir_makefolder(PATH_SEARCH_RES)
+                open_folder_in_explorer(PATH_SEARCH_RES)
+
+
+        elif event == "-BTN_SEARCH_TEXT-":
+            if not isinstance(self.__gen_clip.pickle_file, NoneType):
+                if len(self.__gen_clip.pickle_file) == 0:
+                    print("Пожалуйста, обучите модель, а затем ищите по тексту")
+                    return None
+            elif not os.path.isfile(self.__IN_PKL_PATH):
+                if len(load_pkl(self.__IN_PKL_PATH)) == 0:
+                    print("Пожалуйста, обучите модель, а затем ищите по тексту")
+                    return None
+
+            if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
+                self.__cleanup_temp()
+
+            self._result_quantity_images = self.__widget_is_int(self._window,
+                                                                "-RESULT_QUANTITY_IMAGES_OUT-",
+                                                                update_widget=True)
+
+            # Проверяем, загружена модель, или нет, если нет, надо загрузить
+            if (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
+                print("Создаём модель и препроцессор")
+                # Выводим сообщение о создании модели и препроцессоре
+                print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
+                # Загружаем модель и предобработку
+                self.__model, self.__preprocess = clip.load(CLIP_LOAD)
+
+                self.__gen_clip.preprocess = self.__preprocess
+                self.__gen_clip.model = self.__model
+
+            self._window.start_thread(
+                lambda: self.__gen_clip.searcher_clip(len_count=self._result_quantity_images,
+                                                  query_str_pillow=str(self._window["-IN_TEXT-"].get()),
+                                                  is_str=True,
+                                                  image_filenames=self.__gen_clip.image_list,
+                                                  image_features=self.__gen_clip.pickle_file)
+            , "-BTN_RESULT_SHOW_IMAGES-")
+
+        elif event == "-BTN_SEARCH_PATH-":
+            if not isinstance(self.__gen_clip.pickle_file, NoneType):
+                if len(self.__gen_clip.pickle_file) == 0:
+                    print("Пожалуйста, обучите модель, а затем ищите по изображению")
+                    return None
+            elif not os.path.isfile(self.__IN_PKL_PATH):
+                if len(load_pkl(self.__IN_PKL_PATH)) == 0:
+                    print("Пожалуйста, обучите модель, а затем ищите по изображению")
+                    return None
+
+            if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
+                self.__cleanup_temp()
+
+            # Проверяем, загружена модель, или нет, если нет, надо загрузить
+            if (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
+                print("Создаём модель и препроцессор")
+                # Выводим сообщение о создании модели и препроцессоре
+                print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
+                # Загружаем модель и предобработку
+                self.__model, self.__preprocess = clip.load(CLIP_LOAD)
+
+                self.__gen_clip.preprocess = self.__preprocess
+                self.__gen_clip.model = self.__model
+
+            self._window.start_thread(
+                lambda: self.__gen_clip.searcher_clip(len_count=int(self._window["-RESULT_QUANTITY_IMAGES_OUT-"].get()),
+                                                  query_image_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
+                                                  is_str=False,
+                                                  image_filenames=self.__gen_clip.image_list,
+                                                  image_features=self.__gen_clip.pickle_file,
+                                                  path_clip_image=self.__IN_PKL_PATH,
+                                                  file_names_path=self.__IN_JSON_PATH)
+            , "-BTN_RESULT_SHOW_IMAGES-")
+
+        elif event == "-BTN_FLASHING_TRAIN_MODEL-":
+            self._window.start_thread(lambda: self.__start_flashinbg(), "-BTN_TRAIN_MODEL-")
+
+        elif event == "-BTN_RESULT_SHOW_IMAGES-":
+            self._window.start_thread(lambda: self.__start_flashing_res())
+
+
+
         elif event == "-BTN_TRAIN_MODEL-":
+            self.button_train_flashing = False
+            self._window["-BTN_TRAIN_MODEL-"].update(button_color = ('#000000', '#fdcb52'))
 
             print("Начинаем обучать модель на собранных изображений")
 
@@ -415,103 +531,32 @@ class Main_gui_image_search:
 
             self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
             print(f'{self._window["-TEXT_COUNT_IMAGES-"].get()}')
-            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанно изображений: {len(self.__gen_clip.pickle_file)}")
+            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Добавлено в базу данных: {len(self.__gen_clip.pickle_file)}")
             print(f'{self._window["-TEXT_RESULT_COUNT_IMAGES-"].get()}')
 
             print("Сканирование завершено!")
 
-        elif event == "-UPDATE_COUNTS_IMAGES-":
-            self._window["-TEXT_COUNT_IMAGES-"].update(f"Всего изображений: {len(self.__gen_clip.image_list)}")
-            self._window["-TEXT_RESULT_COUNT_IMAGES-"].update(f"Всего обработанно изображений: {len(self.__gen_clip.pickle_file)}")
-
-
-        elif event == "-RESULT_SHOW_IMAGES-":
-            if self.__tabs_mode == "tab_text":
-                self.__in_text = str(self._window["-IN_TEXT-"].get())
-                self.__in_text = str(re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9-.,_ ]', "", self.__in_text))
-                if os.path.isdir(PATH_SEARCH_RES+self.__in_text):
-                    print(f"Переходим: {PATH_SEARCH_RES+self.__in_text}")
-                    isdir_makefolder(PATH_SEARCH_RES+self.__in_text)
-                    open_folder_in_explorer(PATH_SEARCH_RES+self.__in_text)
-                else:
-                    print(f"Переходим: {PATH_SEARCH_RES}")
-                    isdir_makefolder(PATH_SEARCH_RES)
-                    open_folder_in_explorer(PATH_SEARCH_RES)
+    def __start_flashing_res(self):
+        self.button_show_res_flashing = True
+        for _ in range(10):
+            if self.button_show_res_flashing:
+                self._window["-RESULT_SHOW_IMAGES-"].update(button_color=('#000000', "blue"))
+                sleep(0.4)
+                self._window["-RESULT_SHOW_IMAGES-"].update(button_color=('#000000', '#fdcb52'))
+                sleep(0.4)
             else:
-                print(f"Переходим: {PATH_SEARCH_RES}")
-                isdir_makefolder(PATH_SEARCH_RES)
-                open_folder_in_explorer(PATH_SEARCH_RES)
+                break
 
-
-        elif event == "-BTN_SEARCH_TEXT-":
-            if not isinstance(self.__gen_clip.pickle_file, NoneType):
-                if len(self.__gen_clip.pickle_file) == 0:
-                    print("Пожалуйста, обучите модель, а затем ищите по тексту")
-                    return None
-            elif not os.path.isfile(self.__IN_PKL_PATH):
-                if len(load_pkl(self.__IN_PKL_PATH)) == 0:
-                    print("Пожалуйста, обучите модель, а затем ищите по тексту")
-                    return None
-
-            if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
-                self.__cleanup_temp()
-
-            self._result_quantity_images = self.__widget_is_int(self._window,
-                                                                "-RESULT_QUANTITY_IMAGES_OUT-",
-                                                                update_widget=True)
-
-            # Проверяем, загружена модель, или нет, если нет, надо загрузить
-            if (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
-                print("Создаём модель и препроцессор")
-                # Выводим сообщение о создании модели и препроцессоре
-                print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
-                # Загружаем модель и предобработку
-                self.__model, self.__preprocess = clip.load(CLIP_LOAD)
-
-                self.__gen_clip.preprocess = self.__preprocess
-                self.__gen_clip.model = self.__model
-
-            self._window.start_thread(
-                lambda: self.__gen_clip.searcher_clip(len_count=self._result_quantity_images,
-                                                  query_str_pillow=str(self._window["-IN_TEXT-"].get()),
-                                                  is_str=True,
-                                                  image_filenames=self.__gen_clip.image_list,
-                                                  image_features=self.__gen_clip.pickle_file)
-            )
-
-        elif event == "-BTN_SEARCH_PATH-":
-            if not isinstance(self.__gen_clip.pickle_file, NoneType):
-                if len(self.__gen_clip.pickle_file) == 0:
-                    print("Пожалуйста, обучите модель, а затем ищите по изображению")
-                    return None
-            elif not os.path.isfile(self.__IN_PKL_PATH):
-                if len(load_pkl(self.__IN_PKL_PATH)) == 0:
-                    print("Пожалуйста, обучите модель, а затем ищите по изображению")
-                    return None
-
-            if filter_bool(self._window["-CHBX_CLEANUP_FIND_RES-"].get()):
-                self.__cleanup_temp()
-
-                # Проверяем, загружена модель, или нет, если нет, надо загрузить
-                if (self.__gen_clip.model == None or self.__gen_clip.preprocess == None):
-                    print("Создаём модель и препроцессор")
-                    # Выводим сообщение о создании модели и препроцессоре
-                    print(f"Создаём модель и препроцессор, загружаем clip: {CLIP_LOAD}")
-                    # Загружаем модель и предобработку
-                    self.__model, self.__preprocess = clip.load(CLIP_LOAD)
-
-                    self.__gen_clip.preprocess = self.__preprocess
-                    self.__gen_clip.model = self.__model
-            self._window.start_thread(
-                lambda: self.__gen_clip.searcher_clip(len_count=int(self._window["-RESULT_QUANTITY_IMAGES_OUT-"].get()),
-                                                  query_image_pillow=str(self._window["-IN_TEXT_PATH-"].get()),
-                                                  is_str=False,
-                                                  image_filenames=self.__gen_clip.image_list,
-                                                  image_features=self.__gen_clip.pickle_file,
-                                                  path_clip_image=self.__IN_PKL_PATH,
-                                                  file_names_path=self.__IN_JSON_PATH)
-            )
-
+    def __start_flashinbg(self):
+        self.button_train_flashing = True
+        for _ in range(10):
+            if self.button_train_flashing:
+                self._window["-BTN_TRAIN_MODEL-"].update(button_color=('#000000', "blue"))
+                sleep(0.4)
+                self._window["-BTN_TRAIN_MODEL-"].update(button_color=('#000000', '#fdcb52'))
+                sleep(0.4)
+            else:
+                break
 
     def __cleanup_temp(self):
         temp_dir = PATH_SEARCH_RES
