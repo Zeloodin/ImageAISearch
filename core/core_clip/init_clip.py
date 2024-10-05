@@ -721,7 +721,7 @@ class Generate_clip_features:
         # NumPy массив и вычисляется их длина.
         self.__features = []
         # Преобразование характеристик изображений в NumPy массив
-        for image in self.__image_features:
+        for index, image in enumerate(self.__image_features):
             if self.__ex_return:  # Остановка цикла, если ex_return == True
                 self.__ex_return = False
                 break
