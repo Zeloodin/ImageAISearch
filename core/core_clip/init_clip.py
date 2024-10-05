@@ -728,7 +728,13 @@ class Generate_clip_features:
 
             # Векторная нормализация
             # Нормализация дает нам более точные результаты поиска
-            self.__features.append(np.array(image['features']))
+            # Проверяем image['features'] на NoneType.
+            # Если тип None, пропускаем, 
+            # если тип не None, добавляем в  self.__features
+            if not isinstance(image['features'], NoneType):
+                self.__features.append(np.array(image['features']))
+            else:
+                print(f"Изображение повреждено! Id: {index}, путь: {image['image_id']}")
             # self.__features.append(np.asarray(image['features'], dtype="object")) #NOT FIX
 
         # Сохранение в NumPy массив
