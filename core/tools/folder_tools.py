@@ -18,6 +18,44 @@ from core.tools.json_tools import save_json_file
 from core.tools.bool_tools import filter_bool
 from core.tools.variables import IMG_SUP_EXTS, JSON_FILE_PATH
 
+from concurrent.futures import ThreadPoolExecutor
+
+import logging
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+def list_images_recursive(folder: str):
+    exts = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    p = Path(folder)
+    for f in p.rglob("*"):
+        if f.is_file() and f.suffix.lower() in exts:
+            logger.info(f"Найдено изображение: {f}")
+            yield str(f)
+
+
+def process_image(image_path: str):
+    with Image.open(image_path) as img:
+        img = img.convert("RGB")  # Преобразуем в RGB для унификации
+        # Дополнительная обработка изображения
+        return img
+
+def process_image(image_path: str):
+    try:
+        with Image.open(image_path) as img:
+            img = img.convert("RGB")
+            # Дополнительная обработка
+            return img
+    except Exception as e:
+        logger.error(f"Ошибка при обработке {image_path}: {e}")
+        return None
+
+def process_images_in_parallel(image_paths):
+    with ThreadPoolExecutor() as executor:
+        results = list(executor.map(process_image, image_paths))
+    return results
+
 
 def isdir_makefolder(path_folder):
     """
