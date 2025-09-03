@@ -992,58 +992,37 @@ class Generate_clip_features:
                             continue
 
                         # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
-
                         try:
-
                             print(f"len file_names:{len(self.__file_names)}, index x:{x}, i:{i}")
 
-
                             # FIX: IndexError: list index out of range
-
                             # Переменная, которая хранит путь к изображению
-
                             self.__in_path = self.__file_names[x]
-
                             print(self.__in_path)
-
                             # Открываеи изображение с указанным путём и сохраняем его в self.__img1
-
                             self.__img1 = Image.open(self.__in_path)
 
-
                             # Переменные, которые хранят название и расширение файла
-
                             # self.__filename - имя файла без расширения
-
                             self.__filename = ".".join(self.__in_path.split("\\")[-1].split(".")[:-1])
-
                             # self.__file_extension - расширение файла
-
                             self.__file_extension = "." + self.__in_path.split("\\")[-1].split(".")[-1]
-
                             # Выводим имя и расширение
-
                             print(self.__filename, self.__file_extension)
 
 
                             # Сохраняет изображение в папку images_find (переменная PATH_SEARCH_RES) (Если нет папки, то создает её)
-
                             # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
-
                             isdir_makefolder(PATH_SEARCH_RES)
-
                             # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
                             try:
-
                                 self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
                             except OSError as e:
                                 print(f"Конвертируем изображение с RGBA в RGB: {self.__in_path}")
                                 self.__img1.convert('RGB').save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
                                 continue
 
-
                             # Добавляет изображение в список self.__found_images
-
                             self.__found_images.append(np.array(self.__img1))
 
                         except UnidentifiedImageError as e:
@@ -1121,37 +1100,3 @@ class Generate_clip_features:
         # Создаем векторные представления изображений
         self.create_clip_image_features(self.__all_image_features, self.__image_filenames, self.__save_every_n)
         print("create_clip_image_features finished")
-
-# if __name__ == "__main__":
-#     # gen_clip = Generate_clip_features()
-#     #
-#     # gen_clip.find_image_list(new_folder_list=["Здесь пути к изображениям"])
-#     # gen_clip.run()
-#     #
-#     # print(gen_clip.image_list)
-#     #
-#     # gen_clip.searcher_clip(query_image_pillow="Здесь поиск по изображению")
-#     #
-#     # list_text = ["minecraft", "Цветок", "Mario", "pixel", "voxel", "пейзаж", "горы", "background sky white"]
-#     # gen_clip.searcher_clip(query_str_pillow=list_text, is_str=True)
-#
-#     gen_clip = Generate_clip_features()
-#     gen_clip.find_image_list(new_folder_list=[r"ImageAISearch\folder_path"])
-#
-#
-#     gen_clip.run()
-#     gen_clip.searcher_clip(len_count=5, query_image_pillow=r"images\i_mario.jpg")
-#
-#     list_text = ["minecraft",
-#                  "Цветок",
-#                  "Mario",
-#                  "pixel",
-#                  "voxel",
-#                  "пейзаж",
-#                  "горы",
-#                  "красивый закат солнца",
-#                  "красный город в закате"]
-#
-#     gen_clip.searcher_clip(len_count=5, query_str_pillow=list_text, is_str=True)
-
-
