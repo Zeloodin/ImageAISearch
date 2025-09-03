@@ -14,7 +14,7 @@ import numpy as np
 import torch
 import clip
 import json
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 import pickle as pk
 from tqdm import tqdm
 from sklearn.neighbors import NearestNeighbors
@@ -780,7 +780,7 @@ class Generate_clip_features:
             # включая максимальное количество элементов (max_elements),
             # значение параметра ef_construction и значение параметра M.
             self.__index = hnswlib.Index(space='l2', dim=self.__dim)
-            self.__index.init_index(max_elements=len(self.__features), ef_construction=2500, M=32)
+            self.__index.init_index(max_elements=len(self.__features), ef_construction=100, M=16)
                                                 #len(self.__features)# ef_construction=100, M=16
             # Добавление элементов в индекс
             self.__index.add_items(self.__features)
@@ -897,14 +897,27 @@ class Generate_clip_features:
 
                             isdir_makefolder(PATH_SEARCH_RES + in_text)
                             # Сохраняет изображение
-                            self.__img2.save(
-                                f"{PATH_SEARCH_RES}{in_text}\\{i}_img_{self.__filename}{self.__file_extension}")
+                            try:
+                                self.__img2.save(f"{PATH_SEARCH_RES}{in_text}\\{i}_img_{self.__filename}{self.__file_extension}")
+                            except OSError as e:
+                                print(f"Конвертируем изображение с RGBA в RGB: {self.__file_names[idx]}")
+                                self.__img2.convert('RGB').save(f"{PATH_SEARCH_RES}{in_text}\\{i}_img_{self.__filename}{self.__file_extension}")
+
                             # Присоединяет изображение к списку
                             self.__images_np_hnsw_clip_text.append(np.array(self.__img2))
+
+                        except UnidentifiedImageError as e:
+                            print(f"Не удаётся открыть изображение: {self.__file_names[idx]}")
+                            # Продолжает цикл, игнорируя ошибку
+                            continue
+
+                        except FileNotFoundError as e:
+                            print(f"Файла нет: {e}")
+                            print(f"Изображение не существует: {self.__file_names[idx]}")
+                            continue
+
                         except Exception as e:
-                            # Печатает ошибку
                             print(f"Ошибка: {e}")
-                            # Печатает значения для отладки
                             print(f'{in_text = }\n{idx = }\n{i = }')
                             # Продолжает цикл, игнорируя ошибку
                             continue
@@ -917,7 +930,7 @@ class Generate_clip_features:
             return None
 
         if not self.__is_str:
-            try:
+            # try:
                 if os.path.isfile(self.__query_image_pillow):
                     # Если входящие изображения не переданы, используем те, что уже есть
                     self.__query_image_pillow = self.convert_image(self.__query_image_pillow)
@@ -978,38 +991,83 @@ class Generate_clip_features:
                         if search_in_list(self.__file_names[x],self.__BLACK_NEGATIVE_LIST):
                             continue
 
-                    # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
-                    # try:
-                        print(f"len file_names:{len(self.__file_names)}, index x:{x}, i:{i}")
+                        # Исключение, изображения которые не существуют (например, изображение с таким путём не существует)
 
-                        # FIX: IndexError: list index out of range
-                        # Переменная, которая хранит путь к изображению
-                        self.__in_path = self.__file_names[x]
-                        print(self.__in_path)
-                        # Открываеи изображение с указанным путём и сохраняем его в self.__img1
-                        self.__img1 = Image.open(self.__in_path)
+                        try:
 
-                        # Переменные, которые хранят название и расширение файла
-                        # self.__filename - имя файла без расширения
-                        self.__filename = ".".join(self.__in_path.split("\\")[-1].split(".")[:-1])
-                        # self.__file_extension - расширение файла
-                        self.__file_extension = "." + self.__in_path.split("\\")[-1].split(".")[-1]
-                        # Выводим имя и расширение
-                        print(self.__filename, self.__file_extension)
+                            print(f"len file_names:{len(self.__file_names)}, index x:{x}, i:{i}")
 
-                        # Сохраняет изображение в папку images_find (переменная PATH_SEARCH_RES) (Если нет папки, то создает её)
-                        # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
-                        isdir_makefolder(PATH_SEARCH_RES)
-                        # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
-                        self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
-                        # Добавляет изображение в список self.__found_images
-                        self.__found_images.append(np.array(self.__img1))
+
+                            # FIX: IndexError: list index out of range
+
+                            # Переменная, которая хранит путь к изображению
+
+                            self.__in_path = self.__file_names[x]
+
+                            print(self.__in_path)
+
+                            # Открываеи изображение с указанным путём и сохраняем его в self.__img1
+
+                            self.__img1 = Image.open(self.__in_path)
+
+
+                            # Переменные, которые хранят название и расширение файла
+
+                            # self.__filename - имя файла без расширения
+
+                            self.__filename = ".".join(self.__in_path.split("\\")[-1].split(".")[:-1])
+
+                            # self.__file_extension - расширение файла
+
+                            self.__file_extension = "." + self.__in_path.split("\\")[-1].split(".")[-1]
+
+                            # Выводим имя и расширение
+
+                            print(self.__filename, self.__file_extension)
+
+
+                            # Сохраняет изображение в папку images_find (переменная PATH_SEARCH_RES) (Если нет папки, то создает её)
+
+                            # PATH_SEARCH_RES = fr"{Path.cwd()}\..\data\images_find\"
+
+                            isdir_makefolder(PATH_SEARCH_RES)
+
+                            # Сохраняет в папку images_find с именем число_изображения_имя_файла_расширение
+                            try:
+
+                                self.__img1.save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
+                            except OSError as e:
+                                print(f"Конвертируем изображение с RGBA в RGB: {self.__in_path}")
+                                self.__img1.convert('RGB').save(f"{PATH_SEARCH_RES}{i}_img_{self.__filename}{self.__file_extension}")
+                                continue
+
+
+                            # Добавляет изображение в список self.__found_images
+
+                            self.__found_images.append(np.array(self.__img1))
+
+                        except UnidentifiedImageError as e:
+                            print(f"Ошибка в поиске: {e}")
+                            print(f"Не удаётся открыть изображение: {self.__in_path}")
+                            continue
+
+                        except FileNotFoundError as e:
+                            print(f"Файла нет: {e}")
+                            print(f"Изображение не существует: {self.__in_path}")
+                            continue
+
+                        except Exception as e:
+                            print(f"Ошибка: {e}")
+                        
                 # except Exception as e:
                 #     print(e)
                 #     continue
-            except Exception as e:
-                # print(e)
-                print("Не удалось найти")
+
+            # except Exception as e:
+
+
+            #     print("Не удалось найти")
+            #     print(f"Ошибка в поиске: {e}")
 
     def fit_NearestNeighbors(self, file_names: Optional[List[str]] = None, file_names_path: Optional[str] = None) -> None:
         """
